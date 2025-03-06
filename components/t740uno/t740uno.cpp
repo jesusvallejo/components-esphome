@@ -15,9 +15,12 @@ void T740Uno::loop() {
   while (available()) {
     if (read() == 0x34) {
       ESP_LOGD(TAG, "Incoming call detected");
-      if (this->incoming_call_ != nullptr) {
-        this->incoming_call_->publish_state(true);
-      }
+      #ifdef USE_BINARY_SENSOR
+        if (this->calling_alert_binary_sensor_ != nullptr) {
+            this->calling_alert_binary_sensor_->publish_state(true);
+            this->set_timeout(90, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
+        }
+      #endif
     }
   }
 }

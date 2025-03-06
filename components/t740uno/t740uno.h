@@ -1,24 +1,25 @@
 #pragma once
 
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
 #include "esphome/components/uart/uart.h"
+#ifdef USE_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
+#endif
 
 namespace esphome {
 namespace t740uno {
 
 class T740Uno : public Component, public uart::UARTDevice {
- public:
-  T740Uno(UARTComponent *parent) : UARTDevice(parent) {}
+#ifdef USE_BINARY_SENSOR
+   SUB_BINARY_SENSOR(calling_alert)
+#endif
 
-  void setup() override;
-  void loop() override;
-  void open();
+public:
 
-  void set_incoming_call(binary_sensor::BinarySensor *incoming_call) { incoming_call_ = incoming_call; }
+   void loop() override;
 
- protected:
-  binary_sensor::BinarySensor *incoming_call_;
+   void open();
 };
 
 }  // namespace t740uno
