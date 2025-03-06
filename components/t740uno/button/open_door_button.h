@@ -6,9 +6,9 @@
 namespace esphome {
 namespace t740uno {
 
-class OpneDoorButton : public button::Button, public Parented<T740UNOComponent> {
+class OpenDoorButton : public button::Button, public Parented<T740UNOComponent> {
  public:
-  OpneDoorButton() = default;
+  OpenDoorButton() = default;
 
  protected:
   void press_action() override;
