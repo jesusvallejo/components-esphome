@@ -40,6 +40,7 @@ void T740UNOComponent::loop() {
         }
     }
 
+    // Ring sensor timeout logic
     if (this->ring_active_ && this->ring_sensor_ != nullptr) {
         if ((TIME_COMPONENT->now().timestamp() - this->ring_sensor_last_active_time_) >= 90) {
             ESP_LOGD(TAG, "Ring timeout - Ring Inactive");
@@ -50,19 +51,13 @@ void T740UNOComponent::loop() {
 }
 
 
+// Corrected open_action() to return a lambda for action creation
 esphome::action::Action<> *T740UNOComponent::open_action() {
-  struct T740UNOOpenAction : public esphome::action::Action<> {
-    T740UNOOpenAction(T740UNOComponent *parent) : parent_(parent) {}
-
-    void run(LocalVariables *vars) override {
+  return new esphome::action::LambdaAction<>()
+      .set_code([this](LocalVariables *vars) {
         ESP_LOGD(TAG, "T740UNO Open Action: Sending 0x55");
-        this->parent_->uart_->write(0x55);
-    }
-
-  protected:
-    T740UNOComponent *parent_;
-  };
-  return new T740UNOOpenAction(this);
+        this->uart_->write(0x55);
+      });
 }
 
 
