@@ -8,7 +8,6 @@ from esphome.const import (
     CONF_ID,
     CONF_UART_ID,
     UNIT_METER,
-    CONF_DEVICE_CLASS,
     DEVICE_CLASS_DISTANCE, 
     STATE_CLASS_MEASUREMENT
 )
