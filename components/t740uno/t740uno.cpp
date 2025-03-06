@@ -11,15 +11,11 @@ static const char *const TAG = "t740uno";
 
 void T740UNO::loop() {
     while (available()) {
-        // recvData_();
+   
     }
 }
 
 
-// void T740UNO::recvData_() {
-//     this->ring_->publish_state(1);
-//   }
-  
 
 void T740UNO::dump_config() {
     ESP_LOGCONFIG(TAG, "T740 UNO V2");
