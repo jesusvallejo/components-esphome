@@ -39,7 +39,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_RING_BINARY_SENSOR): cv.Optional({
             cv.GenerateID(): cv.declare_id(T740UNORingBinarySensor),
             cv.Required(CONF_NAME): cv.string,
-            cv.Optional(CONF_DEVICE_CLASS): cv.Maybe(cv.string),
+            cv.Optional(CONF_DEVICE_CLASS): cv.string,
         }),
     }
 ).extend(uart.UART_DEVICE_SCHEMA)
