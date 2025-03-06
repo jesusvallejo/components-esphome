@@ -6,11 +6,6 @@ namespace t740uno {
 
 static const char *const TAG = "t740uno";
 
-void T740Uno::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up T740Uno...");
-  // Add setup code here as needed
-}
-
 void T740Uno::loop() {
   while (available()) {
     if (read() == 0x34) {
