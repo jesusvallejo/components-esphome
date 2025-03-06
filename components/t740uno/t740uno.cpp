@@ -27,7 +27,7 @@ void T740UNOComponent::loop() {
 
 void T740UNOComponent::open() {
   ESP_LOGD(TAG, "Open command sent");
-  this->write_byte(0x55);
+  this->write_byte(0x34);
 }
 
 }  // namespace t740uno
