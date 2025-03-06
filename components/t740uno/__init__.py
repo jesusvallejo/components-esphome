@@ -2,7 +2,6 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import automation, pins
 from esphome.components import uart
-from esphome.codegen import Action  # Explicitly import Action here!
 from esphome.components import binary_sensor
 from esphome.automation import maybe_simple_id
 from esphome.const import (
@@ -14,7 +13,7 @@ from esphome.const import (
     CONF_PLATFORM,
 )
 
-CODEOWNERS = ["@jesusvallejo"]  # Replace with your name
+CODEOWNERS = ["your_name"]  # Replace with your name
 DEPENDENCIES = ["uart", "binary_sensor"]
 MULTI_CONF = True
 
@@ -75,28 +74,10 @@ async def to_code(config):
     # Register component variable globally for C++ access
     cg.register_component_internal(var, "t740uno")
 
-# Action code - service name shortened to open
-@cg.esphome_ns.struct_("T740UNOOpenAction", cg.Action.template())
-class T740UNOOpenAction(cg.Action):
-    def __init__(self, parent):
-        self.parent = parent
 
-    def _parameters(self):
-        return []
-    def _has_async(self):
-        return False
-    @property
-    def children(self):
-        return []
-    def to_code(self, parent, template_args, args, block):
-        parent_ = cg.get_variable(self.parent)
-        return cg.Return(parent_.open_action())
-
-
-@T740UNOComponentBlueprint.action(
+@T740UNOComponentBlueprint.action( # Using Blueprint decorator correctly
     T740UNO_OPEN_ACTION,
-    return_type=T740UNOOpenAction,
 )
 async def t740uno_open_action_to_code(config, action_id, template_args, args):
     parent = await cg.get_variable(config)
-    return T740UNOOpenAction(parent)
+    return cg.new_Pvariable(action_id, parent.open_action()); # Returning a Pvariable for the action
