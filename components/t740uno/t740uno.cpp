@@ -6,9 +6,9 @@ namespace t740uno {
 
 static const char *const TAG = "t740uno";
 
-void T740UNOComponent::setup() {
+// void T740UNOComponent::setup() {
 
-}
+// }
 
 
 void T740UNOComponent::loop() {
