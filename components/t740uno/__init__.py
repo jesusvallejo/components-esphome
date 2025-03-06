@@ -1,6 +1,9 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import uart, binary_sensor
+from esphome import automation, pins
+from esphome.components import uart 
+from esphome.components import binary_sensor
+from esphome.automation import maybe_simple_id
 from esphome.const import (
     CONF_ID,
     CONF_UART_ID,
