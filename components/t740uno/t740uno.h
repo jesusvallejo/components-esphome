@@ -2,51 +2,24 @@
 
 #include "esphome/components/component.h"
 #include "esphome/components/uart/uart_device.h"
-#include "esphome/components/binary_sensor/binary_sensor.h"
-#include "esphome/core/controller.h"
-#include "esphome/core/time.h"
-#include "esphome/components/logger/logger.h"
-#include <deque>
+#include "esphome/components/sensor/sensor.h"
 
 namespace esphome {
 namespace t740uno {
 
-class T740UNOComponent : public Component,
-                                     public uart::UARTDevice,
-                                     public Controller {
+class T740UNO : public Component, public uart::UARTDevice {
  public:
-    T740UNOComponent(uart::UARTComponent *parent) : UARTDevice(parent) {}
-
-    void set_logger(logger::Logger *logger) { this->logger_ = logger; }
-
-    void setup() override;
-    void loop() override;
-
-    binary_sensor::BinarySensor *ring_sensor_{nullptr};
-    void set_ring_sensor(binary_sensor::BinarySensor *sensor) { this->ring_sensor_ = sensor; }
-
-    time_t ring_sensor_last_active_time_ = 0; 
-    bool ring_active_ = false; 
-
-
-    logger::Logger *logger_{nullptr};
-    uart::UARTComponent *uart_{nullptr};
-
-
-    esphome::action::Action<> *open_action();
+   float get_setup_priority() const override { return setup_priority::DATA; }
+   void loop() override;
+   void dump_config() override;
+   
+   void set_ring_sensor(sensor::Sensor *sens) { this->ring_sensor_ = sens; }
 
  protected:
-    std::deque<uint8_t> rx_buffer_;
+    sensor::Sensor *ring_{nullptr};
+    void recvData_();
 };
 
-
-class T740UNORingBinarySensor : public binary_sensor::BinarySensor {
- public:
-  void set_parent(T740UNOComponent *parent) { this->parent_ = parent; }
-
- protected:
-  T740UNOComponent *parent_{nullptr};
-};
 
 
 }  // namespace t740uno

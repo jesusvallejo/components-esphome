@@ -1,65 +1,61 @@
-#include "t740uno_component.h"
+#include "t740uno.h"
 #include "esphome/core/log.h"
-#include "esphome/components/uart/uart.h"
-#include "esphome/core/application.h"
+
 
 namespace esphome {
 namespace t740uno {
 
-static const char *const TAG = "t740uno_component.component";
+static const char *const TAG = "t740uno";
 
-void T740UNOComponent::setup() {
-    ESP_LOGCONFIG(TAG, "Setting up T740UNO UART Component...");
-    uart_->set_baud_rate(this->baud_rate_);
-    uart_->set_parity(this->parity_);
-    uart_->set_stop_bits(this->stop_bits_);
-    uart_->set_data_bits(this->data_bits_);
-    uart_->enable_rx_pin(this->rx_pin_);
-    uart_->enable_tx_pin(this->tx_pin_);
-    uart_->enable();
-}
 
-void T740UNOComponent::loop() {
+void T740UNO::loop() {
     while (available()) {
-        uint8_t byte;
-        read_byte(&byte);
-        rx_buffer_.push_back(byte);
-    }
-
-    while (!rx_buffer_.empty()) {
-        uint8_t byte = rx_buffer_.front();
-        rx_buffer_.pop_front();
-
-        if (byte == 0x34) {
-            ESP_LOGD(TAG, "Received 0x34 - Ring Active");
-            this->ring_active_ = true;
-            this->ring_sensor_last_active_time_ = TIME_COMPONENT->now().timestamp();
-            if (this->ring_sensor_ != nullptr) {
-                this->ring_sensor_->publish_state(true);
-            }
-        }
-    }
-
-    // Ring sensor timeout logic
-    if (this->ring_active_ && this->ring_sensor_ != nullptr) {
-        if ((TIME_COMPONENT->now().timestamp() - this->ring_sensor_last_active_time_) >= 90) {
-            ESP_LOGD(TAG, "Ring timeout - Ring Inactive");
-            this->ring_active_ = false;
-            this->ring_sensor_->publish_state(false);
-        }
+        recvData_();
     }
 }
 
 
-// Corrected open_action() to return a lambda for action creation
-esphome::action::Action<> *T740UNOComponent::open_action() {
-  return new esphome::action::LambdaAction<>()
-      .set_code([this](LocalVariables *vars) {
-        ESP_LOGD(TAG, "T740UNO Open Action: Sending 0x55");
-        this->uart_->write(0x55);
-      });
-}
+void MegaDesk::recvData_() {
+    const int numChars = 2;
+    const int numFields = 4; // read/store all 4 fields for simplicity, use only the last 3.
+    // static variables allows segmented/char-at-a-time decodes
+    static uint16_t receivedBytes[numFields];
+    static uint8_t ndx = 0;
+    int r; // read char/digit
+  
+    // read 2 chars
+    while ((ndx < numChars) && ((r = read()) != -1))
+    {
+      if ((ndx == 0) && (r != '>'))
+      {
+        // first char is not Tx, keep reading...
+        continue;
+      }
+      receivedBytes[ndx] = r;
+      ++ndx;
+    }
+    // read ascii digits
+    while ((ndx >= numChars) && ((r = readdigits_()) != -1)) {
+      receivedBytes[ndx] = r;
+      this->digits_ = 0; // clear
+      if (++ndx == numFields) {
+        // thats all 4 fields. parse/process them now and break-out.
+        parseData_(receivedBytes[1],
+                   receivedBytes[2],
+                   receivedBytes[3]);
+        ndx = 0;
+        return;
+      }
+    }
+  }
+  
 
+void T740UNO::dump_config() {
+    ESP_LOGCONFIG(TAG, "T740 UNO V2");
+    LOG_PIN("  T740 RX Pin: ", this->rx_pin_);
+    LOG_PIN("  T740 TX Pin: ", this->tx_pin_);
+    ESP_LOGCONFIG(TAG, "  T740 Baudrate: %d baud", this->baud_rate_);
+  }
 
 }  // namespace t740uno
 }  // namespace esphome
