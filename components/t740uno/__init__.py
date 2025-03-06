@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import automation 
 from esphome.components import uart
-# from esphome.components import sensor
+from esphome.components import sensor
 
 from esphome.const import (
     CONF_ID,
