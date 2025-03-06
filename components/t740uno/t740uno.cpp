@@ -18,7 +18,7 @@ void T740UNOComponent::loop() {
       #ifdef USE_BINARY_SENSOR
         if (this->calling_alert_binary_sensor_ != nullptr) {
             this->calling_alert_binary_sensor_->publish_state(true);
-            this->set_timeout(90, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
+            this->set_timeout(1000, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
         }
       #endif
     }
