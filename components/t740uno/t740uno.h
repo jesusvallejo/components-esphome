@@ -14,6 +14,5 @@ class T740UNO : public Component, public uart::UARTDevice {
 };
 
 
-
 }  // namespace t740uno
 }  // namespace esphome
