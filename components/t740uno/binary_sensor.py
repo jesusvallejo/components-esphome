@@ -1,13 +1,13 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import binary_sensor
-from esphome.const import DEVICE_CLASS_DOORBELL
+# from esphome.const import DEVICE_CLASS_DOORBELL
 from . import T740UNO, CONF_T740UNO_ID
 
 DEPENDENCIES = ["t740uno"]
 
 CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(
-    device_class=DEVICE_CLASS_DOORBELL
+    # device_class=DEVICE_CLASS_DOORBELL
 ).extend(
     {
         cv.GenerateID(CONF_T740UNO_ID): cv.use_id(T740UNO),
