@@ -6,6 +6,8 @@ from .. import T740UNO, CONF_T740UNO_ID
 
 DEPENDENCIES = ["t740uno"]
 
+OpenDoorButton = t740uno_ns.class_("OpenDoorButton", button.Button)
+
 CONFIG_SCHEMA = button.button_schema(
     # device_class=DEVICE_CLASS_DOORBELL
 ).extend(
