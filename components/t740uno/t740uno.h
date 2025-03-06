@@ -16,7 +16,7 @@ class T740UNO : public Component, public uart::UARTDevice {
 #endif
 
 public:
-
+   void setup() override;
    void loop() override;
 
    void open();
