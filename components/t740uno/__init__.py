@@ -13,7 +13,7 @@ from esphome.const import (
 )
 
 CODEOWNERS = ["@jesusvallejo"]  # Replace with your name
-DEPENDENCIES = ["uart", "binary_sensor"]
+DEPENDENCIES = ["uart"]
 
 CONF_T740UNO_ID = "t740uno_id"
 CONF_RING = "ring"
