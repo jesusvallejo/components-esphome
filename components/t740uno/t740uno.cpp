@@ -15,9 +15,9 @@ void T740UNO::loop() {
 }
 
 
-void T740UNO::recvData_() {
-    this->ring_->publish_state(1);
-  }
+// void T740UNO::recvData_() {
+//     this->ring_->publish_state(1);
+//   }
   
 
 void T740UNO::dump_config() {

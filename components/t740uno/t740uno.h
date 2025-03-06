@@ -9,15 +9,14 @@ namespace t740uno {
 
 class T740UNO : public Component, public uart::UARTDevice {
  public:
-   float get_setup_priority() const override { return setup_priority::DATA; }
    void loop() override;
    void dump_config() override;
    
-   void set_ring_sensor(sensor::Sensor *sens) { this->ring_ = sens; }
+   // void set_ring_sensor(sensor::Sensor *sens) { this->ring_ = sens; }
 
  protected:
-    sensor::Sensor *ring_{nullptr};
-    void recvData_();
+   //  sensor::Sensor *ring_{nullptr};
+   //  void recvData_();
 };
 
 
