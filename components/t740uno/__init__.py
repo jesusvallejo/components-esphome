@@ -11,13 +11,12 @@ CONF_T740UNO_ID = "t740uno_id"
 
 
 t740uno_ns = cg.esphome_ns.namespace('t740uno')
-T740UNOComponent = t740uno_ns.class_('T740UNOComponent', cg.Component, uart.UARTDevice)
+T740UNO = t740uno_ns.class_('T740UNOComponent', cg.Component, uart.UARTDevice)
 
 CONF_UART_ID = 'uart_id'
-CONF_INCOMING_CALL = 'incoming_call'
 
 CONFIG_SCHEMA = (cv.Schema({
-    cv.GenerateID(): cv.declare_id(T740UNOComponent),
+    cv.GenerateID(): cv.declare_id(T740UNO),
 })
     .extend(uart.UART_DEVICE_SCHEMA)
     .extend(cv.COMPONENT_SCHEMA)
