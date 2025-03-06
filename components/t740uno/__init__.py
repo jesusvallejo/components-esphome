@@ -46,9 +46,3 @@ async def to_code(config):
     if CONF_RING in config:
         sens = await sensor.new_sensor(config[CONF_RING])
         cg.add(var.set_ring_sensor(sens))
-     
-
-
-# async def t740uno_open(config, action_id, template_args, args):
-#     parent = await cg.get_variable(config)
-#     return cg.new_Pvariable(action_id, parent.open_action()); # Returning a Pvariable for the action

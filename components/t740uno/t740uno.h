@@ -13,7 +13,7 @@ class T740UNO : public Component, public uart::UARTDevice {
    void loop() override;
    void dump_config() override;
    
-   void set_ring_sensor(sensor::Sensor *sens) { this->ring_sensor_ = sens; }
+   void set_ring_sensor(sensor::Sensor *sens) { this->ring_ = sens; }
 
  protected:
     sensor::Sensor *ring_{nullptr};
