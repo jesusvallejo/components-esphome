@@ -10,7 +10,7 @@ static const char *const TAG = "t740uno";
 
 void T740UNO::loop() {
     while (available()) {
-        recvData_();
+        // recvData_();
     }
 }
 
