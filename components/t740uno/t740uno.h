@@ -10,7 +10,7 @@
 namespace esphome {
 namespace t740uno {
 
-class T740Uno : public Component, public uart::UARTDevice {
+class T740UNO : public Component, public uart::UARTDevice {
 #ifdef USE_BINARY_SENSOR
    SUB_BINARY_SENSOR(calling_alert)
 #endif

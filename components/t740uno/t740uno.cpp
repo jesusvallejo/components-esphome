@@ -6,7 +6,7 @@ namespace t740uno {
 
 static const char *const TAG = "t740uno";
 
-void T740Uno::loop() {
+void T740UNO::loop() {
   while (available()) {
     if (read() == 0x34) {
       ESP_LOGD(TAG, "Incoming call detected");
@@ -20,7 +20,7 @@ void T740Uno::loop() {
   }
 }
 
-void T740Uno::open() {
+void T740UNO::open() {
   ESP_LOGD(TAG, "Open command sent");
   this->write_byte(0x55);
 }
