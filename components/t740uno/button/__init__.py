@@ -1,16 +1,14 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import button
-# from esphome.const import DEVICE_CLASS_DOORBELL
+
 from .. import T740UNO, CONF_T740UNO_ID,t740uno_ns
 
 DEPENDENCIES = ["t740uno"]
 
 OpenDoorButton = t740uno_ns.class_("OpenDoorButton", button.Button)
 
-CONFIG_SCHEMA = button.button_schema(
-    # device_class=DEVICE_CLASS_DOORBELL
-).extend(
+CONFIG_SCHEMA = button.button_schema(OpenDoorButton).extend(
     {
         cv.GenerateID(CONF_T740UNO_ID): cv.use_id(T740UNO),
     }
