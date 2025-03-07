@@ -6,10 +6,15 @@ namespace t740uno {
 
 static const char *const TAG = "t740uno";
 
-// void T740UNOComponent::setup() {
+void T740UNOComponent::dump_config() {
+  #ifdef USE_BINARY_SENSOR
+    LOG_BINARY_SENSOR(" ", "Incoming Call Binary Sensor", this->calling_alert_binary_sensor_);
+  #endif
+  #ifdef USE_BUTTON
+    LOG_BUTTON(" ", "Open Door Button", this->open_door_button_);
+  #endif
 
-// }
-
+}
 
 void T740UNOComponent::loop() {
   while (available()) {
