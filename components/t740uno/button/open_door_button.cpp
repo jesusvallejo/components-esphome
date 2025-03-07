@@ -11,7 +11,7 @@ void OpenDoorButton::press_action() {
     this->parent_->open(); 
 }
 
-void OpenDoorButton::dump_config() { LOG_BUTTON("", "T740 UNO Button", this);}
+// void OpenDoorButton::dump_config() { LOG_BUTTON("", "T740 UNO Button", this);}
 
 }  // namespace t740uno
 }  // namespace esphome

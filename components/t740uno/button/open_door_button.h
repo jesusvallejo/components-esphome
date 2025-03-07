@@ -10,7 +10,7 @@ class OpenDoorButton : public button::Button, public Parented<T740UNOComponent> 
  public:
   OpenDoorButton() = default;
   
-  void dump_config() override;
+  // void dump_config() override;
 
  protected:
   void press_action() override;
