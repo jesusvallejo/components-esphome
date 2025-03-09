@@ -26,7 +26,7 @@ FINAL_VALIDATE_SCHEMA = uart.final_validate_device_schema(
     "t740uno",
     require_tx=True,
     require_rx=True,
-    baud_rate=2400,
+    baud_rate=2100,
     parity="NONE",
     stop_bits=1,
 )
