@@ -16,20 +16,6 @@ void T740UNOComponent::dump_config() {
 
 }
 
-void T740UNOComponent::loop() {
-  while (available()) {
-    if (read() == 0x34) {
-      ESP_LOGD(TAG, "Incoming call detected");
-      #ifdef USE_BINARY_SENSOR
-        if (this->calling_alert_binary_sensor_ != nullptr) {
-            this->calling_alert_binary_sensor_->publish_state(true);
-            this->set_timeout(1000, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
-        }
-      #endif
-    }
-  }
-}
-
 
 void T740UNOComponent::loop() {
     static const uint8_t target_payload[] = {0x80, 0x80, 0xc9, 0xdb, 0x80, 0x80, 0xc9, 0xc1};
