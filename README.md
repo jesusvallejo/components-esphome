@@ -3,4 +3,5 @@
 - Call from emiter to phone: '00 00 13 37'  - address 13 command 37
 - Reponse to call(recieved incoming call from phone to emiter): '00 00 13 01' 
 - Picking up the phone after call ( from phone to emitter): 00 00 13 10  00 00 13 10  00 00 13 10  00 00 00 11 00 00 00 11 00 00 00 11 - 3 times '00 00 13 10' , then clear bus 3 times '00 00 00 11'
+- after call, no pick up, open door : 00 00 13 90  00 00 13 90  00 00 13 90   - 3 times '00 00 13 90' 
 - when press open the door and no comms active( from phone to emitter):  00 00 13 44  00 00 13 44  00 00 13 44  - 3 times '00 00 13 44'
