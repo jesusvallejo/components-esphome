@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import button
 
-from .. import GOLMAR_UNO, CONF_GOLMAR_UNO_ID,golmar_uno_ns
+from .. import GolmarUnoComponent, CONF_GOLMAR_UNO_ID,golmar_uno_ns
 
 DEPENDENCIES = ["golmar_uno"]
 
@@ -10,7 +10,7 @@ open_door_button = golmar_uno_ns.class_("open_door_button", button.Button)
 
 CONFIG_SCHEMA = button.button_schema(open_door_button).extend(
     {
-        cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GOLMAR_UNO),
+        cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GolmarUnoComponent),
     }
 )
 
