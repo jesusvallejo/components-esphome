@@ -1,7 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import binary_sensor
-# from esphome.const import DEVICE_CLASS_DOORBELL
+
 from . import GolmarUnoComponent, CONF_GOLMAR_UNO_ID,golmar_uno_ns
 
 
@@ -9,7 +9,7 @@ DEPENDENCIES = ["golmar_uno"]
 
 incoming_call = golmar_uno_ns.class_("incoming_call", binary_sensor.BinarySensor)
 
-CONFIG_SCHEMA = binary_sensor.binary_sensor(incoming_call).extend(
+CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(incoming_call).extend(
     {
         cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GolmarUnoComponent),
     }
