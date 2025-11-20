@@ -1,0 +1,28 @@
+import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.components import button
+
+from .. import GOLMAR_UNO, CONF_GOLMAR_UNO_ID,golmar_uno_ns
+
+DEPENDENCIES = ["golmar_uno"]
+
+open_door_button = golmar_uno_ns.class_("open_door_button", button.Button)
+
+CONFIG_SCHEMA = button.button_schema(open_door_button).extend(
+    {
+        cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GOLMAR_UNO),
+    }
+)
+
+
+async def to_code(config):
+    hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
+    b = await button.new_button(config)
+    await cg.register_parented(b,config[CONF_GOLMAR_UNO_ID])
+    cg.add(hub.set_open_door_button(b))
+
+
+
+
+
+    
