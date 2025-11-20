@@ -1,15 +1,10 @@
 #include "golmar_uno.h"
 #include "esphome/core/log.h"
-#include <array>
 
 namespace esphome {
 namespace golmar_uno {
 
 static const char *TAG = "golmar_uno.component";
-
-// void golmar_uno_component::setup() {
-//   ESP_LOGD(TAG, "Setting up Golmar UNO component");
-//}
 
 void golmar_uno_component::dump_config() {
   #ifdef USE_BINARY_SENSOR
@@ -63,16 +58,16 @@ void golmar_uno_component::open() {
   const uint8_t CLEAR_BUS_COMMAND = 0x11;
 
   // Build payloads as std::array so we can capture copies safely in lambdas
-  std::array<uint8_t, 4> call_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_CALL_COMMAND};
-  std::array<uint8_t, 4> open_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_OPEN_COMMAND};
-  std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
+  const uint8_t call_payload[] = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_CALL_COMMAND};
+  const uint8_t open_payload[] = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_OPEN_COMMAND};
+  const uint8_t clear_bus_payload[] = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
 
   this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
-  this->set_timeout(500, [this, call_payload, open_payload, clear_bus_payload]() {
+  this->set_timeout(500, [this,clear_bus_payload]() {
     this->write_array(call_payload.data(), call_payload.size()); // call
-    this->set_timeout(500, [this, open_payload, clear_bus_payload]() {
+    this->set_timeout(500, [this, call_payload]() {
       this->write_array(open_payload.data(), open_payload.size()); // open
-      this->set_timeout(4000, [this, clear_bus_payload]() {
+      this->set_timeout(4000, [this, open_payload]() {
         this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
       });
     });
