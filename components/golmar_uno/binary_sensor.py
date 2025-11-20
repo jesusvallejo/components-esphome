@@ -1,20 +1,19 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import binary_sensor
-# from esphome.const import DEVICE_CLASS_DOORBELL
+from esphome.const import DEVICE_CLASS_DOORBELL
 from . import GOLMAR_UNO, CONF_GOLMAR_UNO_ID
 
 DEPENDENCIES = ["golmar_uno"]
 
 
-CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(
-    # device_class=DEVICE_CLASS_DOORBELL
-).extend(
-    {
+CONFIG_SCHEMA = {
+
         cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GOLMAR_UNO),
-        cv.Required(CONF_GOLMAR_UNO_ID): binary_sensor.binary_sensor_schema(),
-    }
-)
+        cv.Required(CONF_GOLMAR_UNO_ID): binary_sensor.binary_sensor_schema(
+            device_class=None,icon="mdi:phone-in-talk"
+        ),      
+}
 
 
 async def to_code(config):
