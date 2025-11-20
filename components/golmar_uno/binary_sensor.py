@@ -20,4 +20,5 @@ CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(
 async def to_code(config):
     var = await binary_sensor.new_binary_sensor(config)
     hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
+    await cg.register_parented(var, hub)
     cg.add(hub.set_calling_alert_binary_sensor(var))
