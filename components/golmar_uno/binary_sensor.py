@@ -17,6 +17,6 @@ CONFIG_SCHEMA = cv.Schema(
 
 
 async def to_code(config):
-    hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
-    var = await binary_sensor.new_binary_sensor(config)
+    hub = await cg.get_variable(config[CONF_CALLING_ALERT])
+    var = await binary_sensor.new_binary_sensor(config[CONF_CALLING_ALERT])
     cg.add(hub.set_calling_alert_binary_sensor(var))
