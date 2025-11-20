@@ -1,5 +1,6 @@
 #include "golmar_uno.h"
 #include "esphome/core/log.h"
+#include <array>
 
 namespace esphome {
 namespace golmar_uno {
@@ -22,13 +23,12 @@ void golmar_uno_component::dump_config() {
 
 
 void golmar_uno_component::loop() {
+  const uint8_t INTERCOM_ADDRESS1 = 0x00;
+  const uint8_t INTERCOM_ADDRESS2 = 0x00;
+  const uint8_t INTERCOM_ADDRESS3 = this->intercom_id_;
+  const uint8_t INTERCOM_COMMAND = 0x37;
 
-    static const uint8_t INTERCOM_ADDRESS1 = 0x00;
-    static const uint8_t INTERCOM_ADDRESS2 = 0x00;
-    static const uint8_t INTERCOM_ADDRESS3 = this->intercom_id_;
-    static const uint8_t INTERCOM_COMMAND = 0x37;
-
-    static const uint8_t target_payload[] = {INTERCOM_HEADER1, INTERCOM_HEADER2, CONF_INTERCOM_ID, INTERCOM_COMMAND};
+  const uint8_t target_payload[] = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, INTERCOM_ADDRESS3, INTERCOM_COMMAND};
     static size_t match_index = 0;
 
     while (available()) {
@@ -54,31 +54,32 @@ void golmar_uno_component::loop() {
 
 void golmar_uno_component::open() {
   ESP_LOGD(TAG, "Open command sent");
-  static const uint8_t CONCIERGE_ADDRESS1 = 0x00;
-  static const uint8_t CONCIERGE_ADDRESS2 = 0x00;
-  static const uint8_t CONCIERGE_ADDRESS3 = this->concierge_id_;
+  const uint8_t CONCIERGE_ADDRESS1 = 0x00;
+  const uint8_t CONCIERGE_ADDRESS2 = 0x00;
+  const uint8_t CONCIERGE_ADDRESS3 = this->concierge_id_;
 
-  static const uint8_t CONCIERGE_CALL_COMMAND = 0x22;
-  static const uint8_t CONCIERGE_OPEN_COMMAND = 0x90;
-  static const uint8_t CLEAR_BUS_COMMAND = 0x11;
-  
-  static const uint8_t [] call_payload = {CONCIERGE_HEADER1, CONCIERGE_HEADER2, CONCIERGE_ADDRESS3, CONCIERGE_CALL_COMMAND};
-  static const uint8_t [] open_payload = {CONCIERGE_HEADER1, CONCIERGE_HEADER2, CONCIERGE_ADDRESS3, CONCIERGE_OPEN_COMMAND};
-  static const uint8_t [] clear_bus_payload = {CONCIERGE_HEADER1, CONCIERGE_HEADER2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
+  const uint8_t CONCIERGE_CALL_COMMAND = 0x22;
+  const uint8_t CONCIERGE_OPEN_COMMAND = 0x90;
+  const uint8_t CLEAR_BUS_COMMAND = 0x11;
 
-            uart.write_array(clear_bus_payload, 4); // clear
-            this.set_timeout(500, [this,clear_bus_payload]() {
-                uart.write_array(call_payload, 4); // call
-                this.set_timeout(500, [this,call_payload]() {
-                    uart.write_array(open_payload, 4); // open
-                    this->set_timeout(4000, [this,open_payload]() {
-                        uart.write_array(clear_bus_payload, 4); // clear
-                    });
-                });
-            });     
-          }      
+  // Build payloads as std::array so we can capture copies safely in lambdas
+  std::array<uint8_t, 4> call_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_CALL_COMMAND};
+  std::array<uint8_t, 4> open_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_OPEN_COMMAND};
+  std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
 
-    }  // namespace golmar_uno
+  this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
+  this->set_timeout(500, [this, call_payload, open_payload, clear_bus_payload]() {
+    this->write_array(call_payload.data(), call_payload.size()); // call
+    this->set_timeout(500, [this, open_payload, clear_bus_payload]() {
+      this->write_array(open_payload.data(), open_payload.size()); // open
+      this->set_timeout(4000, [this, clear_bus_payload]() {
+        this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
+      });
+    });
+  });
+}
+
+}  // namespace golmar_uno
 }  // namespace esphome
 
 
