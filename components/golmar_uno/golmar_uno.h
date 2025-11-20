@@ -18,6 +18,12 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 #ifdef USE_BUTTON
   SUB_BUTTON(open_door)
 #endif
+
+protected:
+   uint8_t intercom_id_{};
+   uint8_t concierge_id_{};
+   bool matter_hub_compatible_{};
+
 public:
 
    void loop() override;
@@ -27,11 +33,8 @@ public:
    void set_intercom_id(uint8_t id) { this->intercom_id_ = id; }
    void set_concierge_id(uint8_t id) { this->concierge_id_ = id; }
    void set_matter_hub_compatible(bool compatible) { this->matter_hub_compatible_ = compatible; }
-   
-protected:
-   uint8_t intercom_id_{};
-   uint8_t concierge_id_{};
-   bool matter_hub_compatible_{};
+
+
 };
 
 }  // namespace esphome::golmar_uno
