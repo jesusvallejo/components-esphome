@@ -6,12 +6,14 @@ from . import GOLMAR_UNO, CONF_GOLMAR_UNO_ID
 
 DEPENDENCIES = ["golmar_uno"]
 
+binary_sensor_ns = cg.esphome_ns.namespace("binary_sensor")
+binary_sensor = binary_sensor.binary_sensor_ns.class_("binary_sensor")
+CONF_BINARY_SENSOR = "binary_sensor"
 
-CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(
-    # device_class=DEVICE_CLASS_DOORBELL
-).extend(
+CONFIG_SCHEMA = (
     {
-        cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GOLMAR_UNO),
+        cv.GenerateID(): cv.declare_id(GOLMAR_UNO),
+        cv.Required(CONF_BINARY_SENSOR): binary_sensor.binary_sensor_schema(),
     }
 )
 
