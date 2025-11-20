@@ -21,7 +21,7 @@ CONFIG_SCHEMA = (cv.Schema({
     cv.GenerateID(): cv.declare_id(GOLMAR_UNO),
     cv.Required(CONF_INTERCOM_ID): cv.int_range(0x00, 0xFF),
     cv.Optional(CONF_CONCIERGE_ID): cv.int_range(0x00, 0xFF),
-    cv.Optional(COBF_MATTER_HUB_COMPATIBLE): cv.boolean(False),
+    cv.Optional(COBF_MATTER_HUB_COMPATIBLE): cv.boolean(default=False),
 })
     .extend(uart.UART_DEVICE_SCHEMA)
     .extend(cv.COMPONENT_SCHEMA)
@@ -46,6 +46,7 @@ async def to_code(config):
         cg.add(var.set_concierge_id(config[CONF_CONCIERGE_ID]))
     else:
         cg.add(var.set_concierge_id(0x00))
+    cg.add(var.set_matter_hub_compatible(config[COBF_MATTER_HUB_COMPATIBLE]))
 
 
 
