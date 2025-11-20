@@ -6,9 +6,9 @@ from .. import GolmarUnoComponent, CONF_GOLMAR_UNO_ID,golmar_uno_ns
 
 DEPENDENCIES = ["golmar_uno"]
 
-open_door_button = golmar_uno_ns.class_("open_door_button", button.Button)
+open_door_button_ns = golmar_uno_ns.class_("open_door_button", button.Button)
 
-CONFIG_SCHEMA = button.button_schema(open_door_button).extend(
+CONFIG_SCHEMA = button.button_schema(open_door_button_ns).extend(
     {
         cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GolmarUnoComponent),
     }

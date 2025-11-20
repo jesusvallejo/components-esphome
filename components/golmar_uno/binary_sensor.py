@@ -7,9 +7,9 @@ from . import GolmarUnoComponent, CONF_GOLMAR_UNO_ID,golmar_uno_ns
 
 DEPENDENCIES = ["golmar_uno"]
 
-incoming_call = golmar_uno_ns.class_("incoming_call", binary_sensor.BinarySensor)
+incoming_call_ns = golmar_uno_ns.class_("incoming_call", binary_sensor.BinarySensor)
 
-CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(incoming_call).extend(
+CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(incoming_call_ns).extend(
     {
         cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GolmarUnoComponent),
     }
