@@ -6,13 +6,13 @@ from .. import GOLMAR_UNO, CONF_GOLMAR_UNO_ID,golmar_uno_ns
 
 DEPENDENCIES = ["golmar_uno"]
 
-# open_door_button = golmar_uno_ns.class_("open_door_button", button.Button)
+open_door_button = golmar_uno_ns.class_("open_door_button", button.Button)
 
-CONFIG_SCHEMA = {
+CONFIG_SCHEMA = button.button_schema(open_door_button).extend(
+    {
         cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GOLMAR_UNO),
-        cv.Required(CONF_GOLMAR_UNO_ID): button.button_schema(),
     }
-
+)
 
 
 async def to_code(config):
