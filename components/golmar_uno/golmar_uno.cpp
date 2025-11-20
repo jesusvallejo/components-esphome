@@ -49,6 +49,7 @@ void golmar_uno_component::loop() {
 
 
 void golmar_uno_component::open() {
+  ESP_LOGD(TAG, "Open door sequence started");
   const uint8_t CONCIERGE_ADDRESS1 = 0x00;
   const uint8_t CONCIERGE_ADDRESS2 = 0x00;
   const uint8_t CONCIERGE_ADDRESS3 = this->concierge_id_;
@@ -62,12 +63,16 @@ void golmar_uno_component::open() {
   const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
 
   this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
+  ESP_LOGD(TAG, "Clear bus command sent");
   this->set_timeout(500, [this,call_payload,open_payload,clear_bus_payload]() {
     this->write_array(call_payload.data(), call_payload.size()); // call
+    ESP_LOGD(TAG, "Concierge call command sent");
     this->set_timeout(500, [this,open_payload,clear_bus_payload]() {
       this->write_array(open_payload.data(), open_payload.size()); // open
+      ESP_LOGD(TAG, "Open door command sent");
       this->set_timeout(4000, [this,clear_bus_payload]() {
         this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
+        ESP_LOGD(TAG, "Clear bus command sent");
       });
     });
   });
