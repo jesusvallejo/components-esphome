@@ -18,7 +18,7 @@ CONFIG_SCHEMA = button.button_schema(open_door_button).extend(
 async def to_code(config):
     hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
     b = await button.new_button(config)
-    await cg.register_parented(b,config[CONF_GOLMAR_UNO_ID])
+    await cg.register_parented(b, hub)
     cg.add(hub.set_open_door_button(b))
 
 
