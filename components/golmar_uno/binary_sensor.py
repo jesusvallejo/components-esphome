@@ -12,7 +12,7 @@ CONF_BINARY_SENSOR = "binary_sensor"
 
 CONFIG_SCHEMA = (
     {
-        cv.GenerateID(): cv.declare_id(GOLMAR_UNO),
+        cv.GenerateID(): cv.declare_id(binary_sensor),
         cv.Required(CONF_BINARY_SENSOR): binary_sensor.binary_sensor_schema(),
     }
 )
