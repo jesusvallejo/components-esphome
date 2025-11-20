@@ -11,6 +11,20 @@
 #endif
 
 namespace esphome::golmar_uno {
+
+#ifdef USE_BINARY_SENSOR
+class incoming_call : public binary_sensor::BinarySensor {
+ public:
+};
+#endif
+
+#ifdef USE_BUTTON
+class open_door_button : public button::Button {
+ public:
+  void press() override;
+};
+#endif
+
 class golmar_uno_component : public Component, public uart::UARTDevice {
 #ifdef USE_BINARY_SENSOR
    SUB_BINARY_SENSOR(calling_alert)
@@ -33,7 +47,8 @@ public:
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
    void set_concierge_id(uint8_t concierge_id) { this->concierge_id_ = concierge_id; }
    void set_matter_hub_compatible(bool compatible) { this->matter_hub_compatible_ = compatible; }
-
+   void set_incoming_call(incoming_call *incoming_call) { this->calling_alert_binary_sensor_ = incoming_call; }
+   void set_open_door_button(open_door_button *open_door) { this->open_door_button_ = open_door; }
 
 };
 

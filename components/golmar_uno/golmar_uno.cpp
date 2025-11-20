@@ -7,6 +7,13 @@ namespace golmar_uno {
 
 static const char *TAG = "golmar_uno.component";
 
+void open_door_button::press() {
+  auto *parent = (golmar_uno_component *)this->get_parent();
+  if (parent != nullptr) {
+    parent->open();
+  }
+}
+
 void golmar_uno_component::dump_config() {
   #ifdef USE_BINARY_SENSOR
     LOG_BINARY_SENSOR(" ", "Incoming Call Binary Sensor", this->calling_alert_binary_sensor_);

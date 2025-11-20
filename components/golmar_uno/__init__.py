@@ -11,7 +11,7 @@ CONF_GOLMAR_UNO_ID = "golmar_uno_id"
 
 
 golmar_uno_ns = cg.esphome_ns.namespace('golmar_uno')
-GolmarUnoComponent = golmar_uno_ns.class_('GolmarUnoComponent', cg.Component, uart.UARTDevice,binary_sensor.BinarySensor,button.Button)
+GolmarUnoComponent = golmar_uno_ns.class_('golmar_uno_component', cg.Component, uart.UARTDevice)
 
 CONF_CONCIERGE_ID = 'concierge_id'
 CONF_INTERCOM_ID = 'intercom_id'
