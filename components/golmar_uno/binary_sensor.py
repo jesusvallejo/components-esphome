@@ -12,6 +12,7 @@ CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(
 ).extend(
     {
         cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GOLMAR_UNO),
+        cv.Required(CONF_GOLMAR_UNO_ID): binary_sensor.binary_sensor_schema(),
     }
 )
 

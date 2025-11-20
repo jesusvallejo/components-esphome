@@ -11,6 +11,7 @@ open_door_button = golmar_uno_ns.class_("open_door_button", button.Button)
 CONFIG_SCHEMA = button.button_schema(open_door_button).extend(
     {
         cv.GenerateID(CONF_GOLMAR_UNO_ID): cv.use_id(GOLMAR_UNO),
+        cv.Required(CONF_GOLMAR_UNO_ID): button.button_schema(),
     }
 )
 
