@@ -1,6 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import uart, binary_sensor, button
+from esphome.components import uart,binary_sensor,button
 from esphome.const import CONF_ID
 
 CODEOWNERS = ["@jesusvallejo"]
@@ -11,7 +11,7 @@ CONF_GOLMAR_UNO_ID = "golmar_uno_id"
 
 
 golmar_uno_ns = cg.esphome_ns.namespace('golmar_uno')
-GOLMAR_UNO = golmar_uno_ns.class_('golmar_uno_component', cg.Component, uart.UARTDevice)
+GOLMAR_UNO = golmar_uno_ns.class_('golmar_uno_component', cg.Component, uart.UARTDevice,binary_sensor.BinarySensor,button.Button)
 
 CONF_CONCIERGE_ID = 'concierge_id'
 CONF_INTERCOM_ID = 'intercom_id'
@@ -24,8 +24,8 @@ CONFIG_SCHEMA = (cv.Schema({
     cv.Optional(CONF_MATTER_HUB_COMPATIBLE, default=False): cv.boolean,
 })
     .extend(uart.UART_DEVICE_SCHEMA)
-    .extend(binary_sensor.BINARY_SENSOR_SCHEMA)
-    .extend(button.BUTTON_SCHEMA)
+    .extend(binary_sensor)
+    .extend(button)
     .extend(cv.COMPONENT_SCHEMA)
 )
 
@@ -38,8 +38,6 @@ FINAL_VALIDATE_UART_SCHEMA = uart.final_validate_device_schema(
     stop_bits=1,
 )
 
-FINAL_VALIDATE_BINARY_SENSOR_SCHEMA = binary_sensor.final_validate_device_schema()
-FINAL_VALIDATE_BUTTON_SCHEMA = button.final_validate_device_schema()
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
@@ -51,5 +49,4 @@ async def to_code(config):
     else:
         cg.add(var.set_concierge_id(0x00))
     cg.add(var.set_matter_hub_compatible(config[CONF_MATTER_HUB_COMPATIBLE]))
-
 
