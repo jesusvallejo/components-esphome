@@ -19,9 +19,9 @@ COBF_MATTER_HUB_COMPATIBLE = 'matter_hub_com'
 
 CONFIG_SCHEMA = (cv.Schema({
     cv.GenerateID(): cv.declare_id(GOLMAR_UNO),
-    cv.Required(CONF_INTERCOM_ID): cv.hex_range(0x00, 0xFF),
-    cv.optional(CONF_CONCIERGE_ID): cv.hex_range(0x00, 0xFF),
-    cv.Optional(COBF_MATTER_HUB_COMPATIBLE): cv.booolean(False),
+    cv.Required(CONF_INTERCOM_ID): cv.int_range(0x00, 0xFF),
+    cv.Optional(CONF_CONCIERGE_ID): cv.int_range(0x00, 0xFF),
+    cv.Optional(COBF_MATTER_HUB_COMPATIBLE): cv.boolean(False),
 })
     .extend(uart.UART_DEVICE_SCHEMA)
     .extend(cv.COMPONENT_SCHEMA)
