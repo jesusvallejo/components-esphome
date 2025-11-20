@@ -63,11 +63,11 @@ void golmar_uno_component::open() {
   const uint8_t clear_bus_payload[] = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
 
   this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
-  this->set_timeout(500, [this,clear_bus_payload]() {
+  this->set_timeout(500, [this]() {
     this->write_array(call_payload.data(), call_payload.size()); // call
-    this->set_timeout(500, [this, call_payload]() {
+    this->set_timeout(500, [this]() {
       this->write_array(open_payload.data(), open_payload.size()); // open
-      this->set_timeout(4000, [this, open_payload]() {
+      this->set_timeout(4000, [this]() {
         this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
       });
     });
