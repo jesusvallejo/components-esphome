@@ -24,7 +24,14 @@ public:
    void dump_config() override;
    void open();
    //void setup() override;
-   void set_intercom_id(uint8_t id) { this->intercom_id_ = intercom_id; }
+   void set_intercom_id(uint8_t id) { this->intercom_id_ = id; }
+   void set_concierge_id(uint8_t id) { this->concierge_id_ = id; }
+   void set_matter_hub_compatible(bool compatible) { this->matter_hub_compatible_ = compatible; }
+   
+protected:
+   uint8_t intercom_id_{};
+   uint8_t concierge_id_{};
+   bool matter_hub_compatible_{};
 };
 
 }  // namespace esphome::golmar_uno

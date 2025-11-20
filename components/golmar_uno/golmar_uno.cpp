@@ -67,11 +67,11 @@ void golmar_uno_component::open() {
   static const uint8_t [] clear_bus_payload = {CONCIERGE_HEADER1, CONCIERGE_HEADER2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
 
             uart.write_array(clear_bus_payload, 4); // clear
-            this.set_timeout(500, [this]() {
+            this.set_timeout(500, [this,clear_bus_payload]() {
                 uart.write_array(call_payload, 4); // call
-                this.set_timeout(500, [this]() {
+                this.set_timeout(500, [this,call_payload]() {
                     uart.write_array(open_payload, 4); // open
-                    this->set_timeout(4000, [this]() {
+                    this->set_timeout(4000, [this,open_payload]() {
                         uart.write_array(clear_bus_payload, 4); // clear
                     });
                 });
