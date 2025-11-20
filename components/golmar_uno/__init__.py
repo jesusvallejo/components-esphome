@@ -24,8 +24,6 @@ CONFIG_SCHEMA = (cv.Schema({
     cv.Optional(CONF_MATTER_HUB_COMPATIBLE, default=False): cv.boolean,
 })
     .extend(uart.UART_DEVICE_SCHEMA)
-    .extend(binary_sensor)
-    .extend(button)
     .extend(cv.COMPONENT_SCHEMA)
 )
 
