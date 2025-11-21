@@ -34,8 +34,6 @@ public:
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
    void set_concierge_id(uint8_t concierge_id) { this->concierge_id_ = concierge_id; }
    void set_matter_hub_compatible(bool compatible) { this->matter_hub_compatible_ = compatible; }
-   void set_incoming_call(incoming_call *incoming_call) { this->calling_alert_binary_sensor_ = incoming_call; }
-   void set_open_door_button(open_door_button *open_door) { this->open_door_button_ = open_door; }
 
 };
 
