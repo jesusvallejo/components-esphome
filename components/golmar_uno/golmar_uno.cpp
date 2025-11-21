@@ -12,6 +12,14 @@ void golmar_uno_component::dump_config() {
   LOG_BUTTON(" ", "Open Door Button", this->open_door_button_);
 }
 
+void golmar_uno_component::setup() {
+  #ifdef USE_BINARY_SENSOR
+    if (this->calling_alert_binary_sensor_ != nullptr) {
+      this->calling_alert_binary_sensor_->publish_state(false);
+    }
+  #endif
+}
+
 
 void golmar_uno_component::loop() {
   const uint8_t INTERCOM_ADDRESS1 = 0x00;

@@ -28,6 +28,7 @@ protected:
 public:
 
    void loop() override;
+   void setup() override;
    void dump_config() override;
    void open();
    //void setup() override;
