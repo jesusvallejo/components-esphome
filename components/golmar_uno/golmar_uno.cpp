@@ -6,7 +6,7 @@ namespace esphome {
 namespace golmar_uno {
 
 static const char *TAG = "golmar_uno.component";
-e
+
 void golmar_uno_component::dump_config() {
   LOG_BINARY_SENSOR(" ", "Incoming Call Binary Sensor", this->calling_alert_binary_sensor_);
   LOG_BUTTON(" ", "Open Door Button", this->open_door_button_);
