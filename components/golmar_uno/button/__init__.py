@@ -6,7 +6,7 @@ from .. import GolmarUnoComponent, CONF_GOLMAR_UNO_ID,golmar_uno_ns
 
 DEPENDENCIES = ["golmar_uno"]
 
-open_door_button_ns = golmar_uno_ns.class_("open_door", button.Button)
+open_door_button_ns = golmar_uno_ns.class_("open_door_button", button.Button)
 
 CONFIG_SCHEMA = button.button_schema(open_door_button_ns).extend(
     {
@@ -19,7 +19,7 @@ async def to_code(config):
     hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
     b = await button.new_button(config)
     await cg.register_parented(b, hub)
-    cg.add(hub.set_open_door_button(b))
+    cg.add(hub.set_open_door_button_(b))
 
 
 

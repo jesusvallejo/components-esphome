@@ -34,6 +34,16 @@ public:
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
    void set_concierge_id(uint8_t concierge_id) { this->concierge_id_ = concierge_id; }
    void set_matter_hub_compatible(bool compatible) { this->matter_hub_compatible_ = compatible; }
+#ifdef USE_BINARY_SENSOR
+   void set_calling_alert_binary_sensor_(binary_sensor::BinarySensor *calling_alert_binary_sensor) {
+     this->calling_alert_binary_sensor_ = calling_alert_binary_sensor;
+   }
+#endif
+#ifdef USE_BUTTON
+   void set_open_door_button_(button::Button *open_door_button) {
+     this->open_door_button_ = open_door_button;
+   }
+#endif
 
 };
 

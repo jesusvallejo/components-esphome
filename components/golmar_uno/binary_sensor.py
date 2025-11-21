@@ -20,4 +20,4 @@ async def to_code(config):
     hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
     b = await binary_sensor.new_binary_sensor(config)
     await cg.register_parented(b, hub)
-    cg.add(hub.set_calling_alert_binary_sensor(b))
+    cg.add(hub.set_calling_alert_binary_sensor_(b))
