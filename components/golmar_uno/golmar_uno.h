@@ -12,19 +12,6 @@
 
 namespace esphome::golmar_uno {
 
-#ifdef USE_BINARY_SENSOR
-class incoming_call : public binary_sensor::BinarySensor {
- public:
-};
-#endif
-
-#ifdef USE_BUTTON
-class open_door_button : public button::Button {
- public:
-  void press() override;
-};
-#endif
-
 class golmar_uno_component : public Component, public uart::UARTDevice {
 #ifdef USE_BINARY_SENSOR
    SUB_BINARY_SENSOR(calling_alert)

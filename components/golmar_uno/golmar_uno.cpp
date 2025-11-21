@@ -15,13 +15,8 @@ void open_door_button::press() {
 }
 
 void golmar_uno_component::dump_config() {
-  #ifdef USE_BINARY_SENSOR
-    LOG_BINARY_SENSOR(" ", "Incoming Call Binary Sensor", this->calling_alert_binary_sensor_);
-  #endif
-  #ifdef USE_BUTTON
-    LOG_BUTTON(" ", "Open Door Button", this->open_door_button_);
-  #endif
-
+  LOG_BINARY_SENSOR(" ", "Incoming Call Binary Sensor", this->calling_alert_binary_sensor_);
+  LOG_BUTTON(" ", "Open Door Button", this->open_door_button_);
 }
 
 

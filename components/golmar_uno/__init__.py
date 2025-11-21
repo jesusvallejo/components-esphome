@@ -9,7 +9,6 @@ MULTI_CONF = True
 
 CONF_GOLMAR_UNO_ID = "golmar_uno_id"
 
-
 golmar_uno_ns = cg.esphome_ns.namespace('golmar_uno')
 GolmarUnoComponent = golmar_uno_ns.class_('golmar_uno_component', cg.Component, uart.UARTDevice)
 
