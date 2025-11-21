@@ -14,13 +14,11 @@ GolmarUnoComponent = golmar_uno_ns.class_('golmar_uno_component', cg.Component, 
 
 CONF_CONCIERGE_ID = 'concierge_id'
 CONF_INTERCOM_ID = 'intercom_id'
-CONF_MATTER_HUB_COMPATIBLE = 'matter_hub_compatible'
 
 CONFIG_SCHEMA = (cv.Schema({
     cv.GenerateID(): cv.declare_id(GolmarUnoComponent),
     cv.Required(CONF_INTERCOM_ID): cv.int_range(0x00, 0xFF),
     cv.Optional(CONF_CONCIERGE_ID): cv.int_range(0x00, 0xFF),
-    cv.Optional(CONF_MATTER_HUB_COMPATIBLE, default=False): cv.boolean,
 })
     .extend(uart.UART_DEVICE_SCHEMA)
     .extend(cv.COMPONENT_SCHEMA)
@@ -45,4 +43,3 @@ async def to_code(config):
         cg.add(var.set_concierge_id(config[CONF_CONCIERGE_ID]))
     else:
         cg.add(var.set_concierge_id(0x00))
-    cg.add(var.set_matter_hub_compatible(config[CONF_MATTER_HUB_COMPATIBLE]))
