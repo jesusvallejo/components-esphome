@@ -87,9 +87,11 @@ void golmar_uno_component::open() {
 }
 
 #ifdef USE_SWITCH
-void golmar_uno_component::open_door_switch_turn_off() {
+void golmar_uno_component::schedule_switch_off(uint32_t delay_ms) {
   if (this->open_door_switch_ != nullptr) {
-    this->open_door_switch_->publish_state(false);
+    this->set_timeout(delay_ms, [this]() {
+      this->open_door_switch_->publish_state(false);
+    });
   }
 }
 #endif
