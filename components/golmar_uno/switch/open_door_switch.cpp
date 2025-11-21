@@ -12,7 +12,7 @@ void open_door_switch::write_state(bool state) {
         this->parent_->open();
         // Auto-turn off after 2 seconds
         this->parent_->set_timeout(2000, [this]() {
-            this->publish_state(false);
+            this->parent_->open_door_switch_turn_off();
         });
     }
 }

@@ -85,5 +85,13 @@ void golmar_uno_component::open() {
     });
   });
 }
+
+#ifdef USE_SWITCH
+void golmar_uno_component::open_door_switch_turn_off() {
+  if (this->open_door_switch_ != nullptr) {
+    this->open_door_switch_->publish_state(false);
+  }
+}
+#endif
 }  // namespace golmar_uno
 }  // namespace esphome 
