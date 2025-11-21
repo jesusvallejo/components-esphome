@@ -9,8 +9,12 @@ static const char *TAG = "golmar_uno.component";
 
 void golmar_uno_component::dump_config() {
   LOG_BINARY_SENSOR(" ", "Incoming Call Binary Sensor", this->calling_alert_binary_sensor_);
+#ifdef USE_BUTTON
   LOG_BUTTON(" ", "Open Door Button", this->open_door_button_);
+#endif
+#ifdef USE_SWITCH
   LOG_SWITCH(" ", "Open Door Switch", this->open_door_switch_);
+#endif
 }
 
 void golmar_uno_component::setup() {

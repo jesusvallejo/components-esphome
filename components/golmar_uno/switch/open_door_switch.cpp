@@ -11,7 +11,7 @@ void open_door_switch::write_state(bool state) {
         ESP_LOGD(TAG, "Opening door via switch");
         this->parent_->open();
         // Auto-turn off after 2 seconds
-        this->set_timeout(2000, [this]() {
+        this->parent_->set_timeout(2000, [this]() {
             this->publish_state(false);
         });
     }
