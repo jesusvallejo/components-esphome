@@ -1,10 +1,10 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import uart,binary_sensor,button
+from esphome.components import uart
 from esphome.const import CONF_ID
 
 CODEOWNERS = ["@jesusvallejo"]
-DEPENDENCIES = ['uart', 'binary_sensor', 'button']
+DEPENDENCIES = ['uart', 'binary_sensor']
 MULTI_CONF = True
 
 CONF_GOLMAR_UNO_ID = "golmar_uno_id"

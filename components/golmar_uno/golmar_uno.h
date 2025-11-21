@@ -9,6 +9,9 @@
 #ifdef USE_BUTTON
 #include "esphome/components/button/button.h"
 #endif
+#ifdef USE_SWITCH
+#include "esphome/components/switch/switch.h"
+#endif
 
 namespace esphome::golmar_uno {
 
@@ -18,6 +21,9 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 #endif
 #ifdef USE_BUTTON
   SUB_BUTTON(open_door)
+#endif
+#ifdef USE_SWITCH
+  SUB_SWITCH(open_door)
 #endif
 
 protected:
@@ -41,6 +47,11 @@ public:
 #ifdef USE_BUTTON
    void set_open_door_button_(button::Button *open_door_button) {
      this->open_door_button_ = open_door_button;
+   }
+#endif
+#ifdef USE_SWITCH
+   void set_open_door_switch_(switch_::Switch *open_door_switch) {
+     this->open_door_switch_ = open_door_switch;
    }
 #endif
 
