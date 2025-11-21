@@ -14,10 +14,10 @@ namespace esphome::golmar_uno {
 
 class golmar_uno_component : public Component, public uart::UARTDevice {
 #ifdef USE_BINARY_SENSOR
-   SUB_BINARY_SENSOR(calling_alert)
+   SUB_BINARY_SENSOR(calling_alert_binary_sensor)
 #endif
 #ifdef USE_BUTTON
-  SUB_BUTTON(open_door)
+  SUB_BUTTON(open_door_button)
 #endif
 
 protected:

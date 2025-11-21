@@ -73,4 +73,4 @@ void golmar_uno_component::open() {
   });
 }
 }  // namespace golmar_uno
-}  // namespace 
+}  // namespace esphome 

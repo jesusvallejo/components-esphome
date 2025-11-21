@@ -14,7 +14,7 @@ GolmarUnoComponent = golmar_uno_ns.class_('golmar_uno_component', cg.Component, 
 
 CONF_CONCIERGE_ID = 'concierge_id'
 CONF_INTERCOM_ID = 'intercom_id'
-CONF_MATTER_HUB_COMPATIBLE = 'matter_hub_com'
+CONF_MATTER_HUB_COMPATIBLE = 'matter_hub_compatible'
 
 CONFIG_SCHEMA = (cv.Schema({
     cv.GenerateID(): cv.declare_id(GolmarUnoComponent),
