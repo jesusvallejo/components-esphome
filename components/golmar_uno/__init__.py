@@ -1,6 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import uart, button, number
+from esphome.automation import cv_key, cv_action
 from esphome.const import (
     CONF_ID,
     ENTITY_CATEGORY_CONFIG,
@@ -36,6 +37,16 @@ CONFIG_SCHEMA = (cv.Schema({
     .extend(uart.UART_DEVICE_SCHEMA)
     .extend(cv.COMPONENT_SCHEMA)
 )
+
+GOLMAR_UNO_OPEN_ACTION_SCHEMA = cv.Schema({
+    cv.Required(CONF_ID): cv.use_id(GolmarUnoComponent),
+})
+
+@cv_action("golmar_uno.open", GOLMAR_UNO_OPEN_ACTION_SCHEMA)
+async def golmar_uno_open_action_to_code(config, action_id, template_arg, args):
+    paren = await cg.get_variable(config[CONF_ID])
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
 
 FINAL_VALIDATE_UART_SCHEMA = uart.final_validate_device_schema(
     "golmar_uno",

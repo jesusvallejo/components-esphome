@@ -3,6 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 #include "esphome/core/preferences.h"
+#include "esphome/core/automation.h"
 #include "esphome/components/uart/uart.h"
 #ifdef USE_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -20,6 +21,16 @@
 namespace esphome::golmar_uno {
 
 class golmar_uno_component;
+
+template<typename... Ts> class GolmarUnoOpenAction : public Action<Ts...> {
+ public:
+  explicit GolmarUnoOpenAction(golmar_uno_component *parent) : parent_(parent) {}
+
+  void play(Ts... x) override { this->parent_->open(); }
+
+ protected:
+  golmar_uno_component *parent_;
+};
 
 class GolmarUnoNumber : public number::Number, public Component {
  public:
