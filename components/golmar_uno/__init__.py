@@ -24,7 +24,7 @@ CONF_INTERCOM_ID_NUMBER = 'intercom_id_number'
 CONFIG_SCHEMA = (cv.Schema({
     cv.GenerateID(): cv.declare_id(GolmarUnoComponent),
     cv.Optional(CONF_INTERCOM_ID, default=0x01): cv.int_range(0x00, 0xFF),
-    cv.Optional(CONF_CONCIERGE_ID,default=0x00): cv.int_range(0x00, 0xFF),
+    cv.Optional(CONF_CONCIERGE_ID): cv.int_range(0x00, 0xFF),
     cv.Optional(CONF_DETECT_INTERCOM_ID_BUTTON): button.button_schema().extend({
         cv.Optional("entity_category", default=ENTITY_CATEGORY_CONFIG): cv.entity_category,
     }),
@@ -52,10 +52,13 @@ async def to_code(config):
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
     cg.add(var.set_intercom_id(config[CONF_INTERCOM_ID]))
-    cg.add(var.set_concierge_id(config[CONF_CONCIERGE_ID]))
+    if CONF_CONCIERGE_ID in config:
+        cg.add(var.set_concierge_id(config[CONF_CONCIERGE_ID]))
+    else:
+        cg.add(var.set_concierge_id(0x00))
     if CONF_DETECT_INTERCOM_ID_BUTTON in config:
         btn = await button.new_button(config[CONF_DETECT_INTERCOM_ID_BUTTON])
-        cg.add(var.set_detect_intercom_id_button(btn))
+        cg.add(var.set_detect_intercom_id_button_(btn))
     if CONF_INTERCOM_ID_NUMBER in config:
         num = await number.new_number(config[CONF_INTERCOM_ID_NUMBER], min_value=0, max_value=255, step=1)
         await cg.register_component(num, config[CONF_INTERCOM_ID_NUMBER])

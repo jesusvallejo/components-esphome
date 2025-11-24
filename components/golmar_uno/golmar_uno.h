@@ -74,6 +74,7 @@ public:
 #endif
 #ifdef USE_BUTTON
    void set_open_door_button_(button::Button *open_door_button) { this->open_door_button_ = open_door_button; }
+   void set_detect_intercom_id_button_(button::Button *button) { this->detect_intercom_id_button_ = button; }
 #endif
 #ifdef USE_SWITCH
    void set_open_door_switch_(switch_::Switch *open_door_switch) {
