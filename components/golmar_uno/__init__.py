@@ -25,7 +25,8 @@ CONFIG_SCHEMA = (cv.Schema({
     cv.GenerateID(): cv.declare_id(GolmarUnoComponent),
     cv.Optional(CONF_INTERCOM_ID, default=0x01): cv.int_range(0x00, 0xFF),
     cv.Optional(CONF_CONCIERGE_ID): cv.int_range(0x00, 0xFF),
-    cv.Optional(CONF_DETECT_INTERCOM_ID_BUTTON): button.button_schema().extend({
+    cv.Optional(CONF_DETECT_INTERCOM_ID_BUTTON): button.BUTTON_SCHEMA.extend({
+        cv.GenerateID(): cv.declare_id(button.Button),
         cv.Optional("entity_category", default=ENTITY_CATEGORY_CONFIG): cv.entity_category,
     }),
     cv.Optional(CONF_INTERCOM_ID_NUMBER): number.number_schema(GolmarUnoNumber).extend({
@@ -58,6 +59,7 @@ async def to_code(config):
         cg.add(var.set_concierge_id(0x00))
     if CONF_DETECT_INTERCOM_ID_BUTTON in config:
         btn = await button.new_button(config[CONF_DETECT_INTERCOM_ID_BUTTON])
+        await cg.register_component(btn, config[CONF_DETECT_INTERCOM_ID_BUTTON])
         cg.add(var.set_detect_intercom_id_button_(btn))
     if CONF_INTERCOM_ID_NUMBER in config:
         num = await number.new_number(config[CONF_INTERCOM_ID_NUMBER], min_value=0, max_value=255, step=1)
