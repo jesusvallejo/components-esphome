@@ -25,8 +25,7 @@ CONFIG_SCHEMA = (cv.Schema({
     cv.GenerateID(): cv.declare_id(GolmarUnoComponent),
     cv.Optional(CONF_INTERCOM_ID, default=0x01): cv.int_range(0x00, 0xFF),
     cv.Optional(CONF_CONCIERGE_ID): cv.int_range(0x00, 0xFF),
-    cv.Optional(CONF_DETECT_INTERCOM_ID_BUTTON): button.BUTTON_SCHEMA.extend({
-        cv.GenerateID(): cv.declare_id(button.Button),
+    cv.Optional(CONF_DETECT_INTERCOM_ID_BUTTON): button.button_schema(button.Button).extend({
         cv.Optional("entity_category", default=ENTITY_CATEGORY_CONFIG): cv.entity_category,
     }),
     cv.Optional(CONF_INTERCOM_ID_NUMBER): number.number_schema(GolmarUnoNumber).extend({
