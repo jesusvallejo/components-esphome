@@ -7,9 +7,9 @@
 namespace esphome {
 namespace golmar_uno {
 
-class GolmarDoorLock : public lock::Lock, public Parented<golmar_uno_component> {
+class door_lock : public lock::Lock, public Parented<golmar_uno_component> {
  public:
-  GolmarDoorLock() = default;
+  door_lock() = default;
   void control(const lock::LockCall &call) override;
  protected:
   void unlock();

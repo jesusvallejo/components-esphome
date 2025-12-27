@@ -41,7 +41,7 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 
 #ifdef USE_LOCK
    // Lock to represent the door lock entity
-   lock::Lock *door_lock_entity_ = nullptr;
+   lock::Lock *door_lock_ = nullptr;
 #endif
 
 protected:
@@ -78,8 +78,8 @@ public:
 #endif
 
 #ifdef USE_LOCK
-   void set_door_lock_entity(lock::Lock *door_lock) { this->door_lock_entity_ = door_lock; }
-   void lock_door_entity(uint32_t delay_ms);
+   void set_door_lock_(lock::Lock *door_lock) { this->door_lock_ = door_lock; }
+   void lock_door_lock(uint32_t delay_ms);
 #endif
 };
 
