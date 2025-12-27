@@ -9,10 +9,10 @@ namespace golmar_uno {
 
 class door_lock : public lock::Lock, public Parented<golmar_uno_component> {
  public:
-  unlock_door() = default;
+  unlock_door_lock() = default;
  protected:
   void press_action() override;
 };
 
 }  // namespace golmar_uno
-}  // namespace esphome
+}  // namespace esphome  

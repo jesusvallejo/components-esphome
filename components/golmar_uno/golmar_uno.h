@@ -23,6 +23,7 @@
 namespace esphome::golmar_uno {
 
 class golmar_uno_component : public Component, public uart::UARTDevice {
+
 #ifdef USE_BINARY_SENSOR
    SUB_BINARY_SENSOR(calling_alert)
 #endif
@@ -73,8 +74,8 @@ public:
 #endif
 
 #ifdef USE_LOCK
-   void set_unlock_door_(lock::Lock * unlock_door){
-      this->unlock_door_ = unlock_door;
+   void set_door_lock_(lock::Lock * door_lock){
+      this->door_lock_ = door_lock;
    }
 #endif
 };
