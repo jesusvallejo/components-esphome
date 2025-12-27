@@ -97,13 +97,14 @@ void golmar_uno_component::open() {
     this->set_timeout(500, [this,open_payload,clear_bus_payload]() {
       this->write_array(open_payload.data(), open_payload.size()); // open
       ESP_LOGD(TAG, "Unlock door command sent");
+      #ifdef USE_LOCK
+          if (this->door_lock_ != nullptr)
+            this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
+      #endif
       this->set_timeout(4000, [this,clear_bus_payload]() {
         this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
         ESP_LOGD(TAG, "Clear bus command sent");
-        #ifdef USE_LOCK
-          if (this->door_lock_ != nullptr)
-            this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
-        #endif
+
       });
     });
   });
