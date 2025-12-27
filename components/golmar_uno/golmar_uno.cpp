@@ -1,6 +1,6 @@
 #include "golmar_uno.h"
 #include "esphome/core/log.h"
-#ibclude "esphome/components/lock/lock.h"
+#include "esphome/components/lock/lock.h"
 #include <array>
 
 namespace esphome {
