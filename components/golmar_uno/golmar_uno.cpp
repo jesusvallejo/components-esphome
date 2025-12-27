@@ -31,7 +31,7 @@ void golmar_uno_component::setup() {
     #ifdef USE_LOCK
       // Ensure the lock entity reports a locked state on boot
       if (this->door_lock_ != nullptr) {
-        this->door_lock_->publish_state(static_cast<lock::LockState>(0));
+        this->door_lock_->publish_state(static_cast<lock::LockState>(1));
       }
     #endif
 }
