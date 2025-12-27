@@ -7,11 +7,11 @@
 namespace esphome {
 namespace golmar_uno {
 
-class door_lock : public lock::Lock, public Parented<golmar_uno_component> {
+class GolmarDoorLock : public lock::Lock, public Parented<golmar_uno_component> {
  public:
-  door_lock() = default;
+  GolmarDoorLock() = default;
  protected:
-  void unlock() override;
+  void unlock();
 };
 
 }  // namespace golmar_uno

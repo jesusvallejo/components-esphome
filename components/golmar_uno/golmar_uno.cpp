@@ -18,7 +18,7 @@ void golmar_uno_component::dump_config() {
   LOG_SWITCH(" ", "Open Door Switch", this->open_door_switch_);
 #endif
 #ifdef USE_LOCK
-  LOG_LOCK(" ", "Unlock door", this->door_lock_);
+  LOG_LOCK(" ", "Unlock door", this->door_lock_entity_);
 #endif
 }
 
@@ -87,7 +87,8 @@ void golmar_uno_component::open() {
         this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
         ESP_LOGD(TAG, "Clear bus command sent");
         #ifdef USE_LOCK
-          this->door_lock_->publish_state(true);
+          if (this->door_lock_entity_ != nullptr)
+            this->door_lock_entity_->publish_state(true);
         #endif
       });
     });
@@ -105,10 +106,10 @@ void golmar_uno_component::schedule_switch_off(uint32_t delay_ms) {
 #endif
 
 #ifdef USE_LOCK
-void golmar_uno_component::lock_door_lock(uint32_t delay_ms) {
-  if (this->door_lock_ != nullptr) {
+void golmar_uno_component::lock_door_entity(uint32_t delay_ms) {
+  if (this->door_lock_entity_ != nullptr) {
     this->set_timeout(delay_ms, [this]() {
-      this->door_lock_->publish_state(false);
+      this->door_lock_entity_->publish_state(false);
     });
   }
 }
