@@ -32,7 +32,7 @@ void golmar_uno_component::setup() {
     #ifdef USE_LOCK
       // Ensure the lock entity reports a locked state on boot
       if (this->door_lock_ != nullptr) {
-        this->door_lock_->publish_state(lock::LockState::LOCKED);
+        this->door_lock_->publish_state(lock::LockState::LOCK_STATE_LOCKED);
       }
     #endif
 }
@@ -95,7 +95,7 @@ void golmar_uno_component::open() {
         ESP_LOGD(TAG, "Clear bus command sent");
         #ifdef USE_LOCK
           if (this->door_lock_ != nullptr)
-            this->door_lock_->publish_state(lock::LockState::UNLOCKED);
+            this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
         #endif
       });
     });
@@ -116,7 +116,7 @@ void golmar_uno_component::schedule_switch_off(uint32_t delay_ms) {
 void golmar_uno_component::lock_door_lock(uint32_t delay_ms) {
   if (this->door_lock_ != nullptr) {
     this->set_timeout(delay_ms, [this]() {
-      this->door_lock_->publish_state(lock::LockState::LOCKED);
+      this->door_lock_->publish_state(lock::LockState::LOCK_STATE_LOCKED);
     });
   }
 }
