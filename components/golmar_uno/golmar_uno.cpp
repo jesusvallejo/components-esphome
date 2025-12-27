@@ -24,17 +24,20 @@ void golmar_uno_component::dump_config() {
 }
 
 void golmar_uno_component::setup() {
+
   #ifdef USE_BINARY_SENSOR
     if (this->calling_alert_binary_sensor_ != nullptr) {
       this->calling_alert_binary_sensor_->publish_state(false);
     }
   #endif
-    #ifdef USE_LOCK
-      // Ensure the lock entity reports a locked state on boot
-      if (this->door_lock_ != nullptr) {
-        this->door_lock_->publish_state(lock::LockState::LOCK_STATE_LOCKED);
-      }
-    #endif
+
+  #ifdef USE_LOCK
+    // Ensure the lock entity reports a locked state on boot
+    if (this->door_lock_ != nullptr) {
+      this->door_lock_->publish_state(lock::LockState::LOCK_STATE_LOCKED);
+    }
+  #endif
+
 }
 
 
@@ -81,10 +84,11 @@ void golmar_uno_component::open() {
   const std::array<uint8_t, 4> call_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_CALL_COMMAND};
   const std::array<uint8_t, 4> open_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_OPEN_COMMAND};
   const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
-          #ifdef USE_LOCK
-          if (this->door_lock_ != nullptr)
-            this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKING);
-        #endif
+  
+  #ifdef USE_LOCK
+    if (this->door_lock_ != nullptr)
+      this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKING);
+  #endif
 
   this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
   ESP_LOGD(TAG, "Clear bus command sent");
