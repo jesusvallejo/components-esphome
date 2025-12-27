@@ -62,19 +62,19 @@ public:
 #endif
 
 #ifdef USE_BUTTON
-   void set_open_door_button_(button::Button *open_door_button) {
+   void set_open_door_button_(button_::Button *open_door_button) {
      this->open_door_button_ = open_door_button;
    }
 #endif
 
 #ifdef USE_SWITCH
-   void set_open_door_switch_(switch::Switch *open_door_switch) {
+   void set_open_door_switch_(switch_::Switch *open_door_switch) {
      this->open_door_switch_ = open_door_switch;
    }
 #endif
 
 #ifdef USE_LOCK
-   void set_door_lock_(lock::Lock * door_lock){
+   void set_door_lock_(lock_::Lock * door_lock){
       this->door_lock_ = door_lock;
    }
 #endif

@@ -18,7 +18,7 @@ void golmar_uno_component::dump_config() {
   LOG_SWITCH(" ", "Open Door Switch", this->open_door_switch_);
 #endif
 #ifdef USE_LOCK
-  LOG_LOCK(" ", "Unlock door", this->unlock_door_lock_);
+  LOG_LOCK(" ", "Unlock door", this->door_lock_);
 #endif
 }
 

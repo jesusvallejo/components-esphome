@@ -16,4 +16,4 @@ void open_door_switch::write_state(bool state) {
 }
 
 }  // namespace golmar_uno
-}
+}  // namespace esphome
