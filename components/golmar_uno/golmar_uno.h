@@ -62,7 +62,7 @@ public:
 #endif
 
 #ifdef USE_BUTTON
-   void set_open_door_button_(button_::Button *open_door_button) {
+   void set_open_door_button_(button::Button *open_door_button) {
      this->open_door_button_ = open_door_button;
    }
 #endif
