@@ -15,5 +15,12 @@ void GolmarDoorLock::unlock() {
         }
 }
 
+void GolmarDoorLock::control(const lock::LockCall &call) {
+    // For this simple implementation, any control request will trigger an unlock.
+    // We forward to the unlock() helper which triggers the intercom sequence
+    // and schedules re-locking via the parent component.
+    this->unlock();
+}
+
 }  // namespace golmar_uno
 }  // namespace esphome

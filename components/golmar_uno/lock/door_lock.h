@@ -10,6 +10,7 @@ namespace golmar_uno {
 class GolmarDoorLock : public lock::Lock, public Parented<golmar_uno_component> {
  public:
   GolmarDoorLock() = default;
+  void control(const lock::LockCall &call) override;
  protected:
   void unlock();
 };
