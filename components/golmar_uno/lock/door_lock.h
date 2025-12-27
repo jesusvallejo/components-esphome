@@ -1,15 +1,15 @@
 #pragma once
 
 #include "esphome/core/component.h"
-#include "esphome/components/button/button.h"
+#include "esphome/components/lock/lock.h"
 #include "../golmar_uno.h"
 
 namespace esphome {
 namespace golmar_uno {
 
-class open_door_button : public button::Button, public Parented<golmar_uno_component> {
+class door_lock : public lock::Lock, public Parented<golmar_uno_component> {
  public:
-  open_door_button() = default;
+  unlock_door() = default;
  protected:
   void press_action() override;
 };

@@ -1,14 +1,14 @@
-#include "open_door_button.h"
+#include "door_lock.h"
 #include "esphome/core/log.h"
 
 namespace esphome {
 namespace golmar_uno {
 
-static const char *const TAG = "golmar_uno.button";
+static const char *const TAG = "golmar_uno.lock";
 
-void open_door_button::press_action() {
+void unlock_door::press_action() {
     ESP_LOGD(TAG, "Sending pressed intercom button payload"); 
-    this->parent_->open(); 
+    this->parent_->unlock(); 
 }
 
 }  // namespace golmar_uno

@@ -12,6 +12,9 @@
 #ifdef USE_SWITCH
 #include "esphome/components/switch/switch.h"
 #endif
+#ifdef USE_LOCK
+#include "esphome/components/lock/lock.h"
+#endif
 
 namespace esphome::golmar_uno {
 
@@ -24,6 +27,9 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 #endif
 #ifdef USE_SWITCH
   SUB_SWITCH(open_door)
+#endif
+#ifdef USE_LOCK
+   SUB_LOCK(unlock_door)
 #endif
 
 protected:
@@ -51,10 +57,14 @@ public:
    }
 #endif
 #ifdef USE_SWITCH
-   void set_open_door_switch_(switch_::Switch *open_door_switch) {
+   void set_open_door_switch_(switch::Switch *open_door_switch) {
      this->open_door_switch_ = open_door_switch;
    }
 #endif
+#ifdef USE_LOCK
+   void set_unlock_door_(lock::Lock * unlock_door){
+      this->unlock_door_ = unlock_door;
+   }
 
 };
 
