@@ -11,7 +11,7 @@ void door_lock::unlock() {
         if (this->parent_ != nullptr) {
             this->parent_->open();
             // schedule closing of lock entity (if component supports it)
-            this->parent_->lock_door_lock(4000);
+            this->parent_->lock_door_lock(3000);
         }
 }
 
