@@ -37,7 +37,7 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 #endif
 
 #ifdef USE_LOCK
-   SUB_LOCK(unlock_door)
+   SUB_LOCK(door)
 #endif
 
 protected:
