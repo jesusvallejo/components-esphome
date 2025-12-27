@@ -34,7 +34,7 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 
 #ifdef USE_SWITCH
   SUB_SWITCH(open_door)
-#endif'
+#endif
 
 #ifdef USE_LOCK
    // Lock to represent the door lock entity
