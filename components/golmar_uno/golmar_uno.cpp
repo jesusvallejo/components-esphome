@@ -117,7 +117,7 @@ void golmar_uno_component::schedule_switch_off(uint32_t delay_ms) {
 #endif
 
 #ifdef USE_LOCK
-void golmar_uno_component::lock_door_lock(uint32_t delay_ms) {
+void golmar_uno_component::schedule_door_lock(uint32_t delay_ms) {
   if (this->door_lock_ != nullptr) {
     this->set_timeout(delay_ms, [this]() {
       this->door_lock_->publish_state(lock::LockState::LOCK_STATE_LOCKED);

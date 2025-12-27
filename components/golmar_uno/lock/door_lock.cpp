@@ -10,8 +10,14 @@ void door_lock::unlock() {
         ESP_LOGD(TAG, "Unlock requested via lock entity");
         if (this->parent_ != nullptr) {
             this->parent_->open();
-            // schedule closing of lock entity (if component supports it)
-            this->parent_->lock_door_lock(3000);
+        }
+}
+
+void door_lock::lock() {
+    // For this simple implementation, we do not support locking via the lock entity.
+    ESP_LOGW(TAG, "Lock requested via lock entity, but locking is not supported. reseting to locked state.");
+    if (this->parent_ != nullptr) {
+            this->parent_->schedule_door_lock(3000);
         }
 }
 
@@ -20,6 +26,7 @@ void door_lock::control(const lock::LockCall &call) {
     // We forward to the unlock() helper which triggers the intercom sequence
     // and schedules re-locking via the parent component.
     this->unlock();
+    this->lock();
 }
 
 }  // namespace golmar_uno

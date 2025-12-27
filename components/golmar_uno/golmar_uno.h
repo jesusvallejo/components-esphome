@@ -79,7 +79,7 @@ public:
 
 #ifdef USE_LOCK
    void set_door_lock_(lock::Lock *door_lock) { this->door_lock_ = door_lock; }
-   void lock_door_lock(uint32_t delay_ms);
+   void schedule_door_lock(uint32_t delay_ms);
 #endif
 };
 
