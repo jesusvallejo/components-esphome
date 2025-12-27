@@ -1,5 +1,5 @@
 External Components:
-  - Golmar Uno: incoming call detection, button and switch support(auto turn-off after 2 secs)
+  - Golmar Uno t720/t540: incoming call detection, button and switch support(auto turn-off after 2 secs)
 ```
 external_components:
   - source: github://jesusvallejo/components-esphome/components@main
