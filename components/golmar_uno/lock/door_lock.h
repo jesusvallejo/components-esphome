@@ -13,6 +13,7 @@ class door_lock : public lock::Lock, public Parented<golmar_uno_component> {
   void control(const lock::LockCall &call) override;
  protected:
   void unlock();
+  void lock();
 };
 
 }  // namespace golmar_uno

@@ -22,9 +22,6 @@ void door_lock::lock() {
 }
 
 void door_lock::control(const lock::LockCall &call) {
-    // For this simple implementation, any control request will trigger an unlock.
-    // We forward to the unlock() helper which triggers the intercom sequence
-    // and schedules re-locking via the parent component.
     this->unlock();
     this->lock();
 }
