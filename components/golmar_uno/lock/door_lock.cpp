@@ -9,7 +9,7 @@ static const char *const TAG = "golmar_uno.lock";
 void door_lock::unlock() {
         ESP_LOGD(TAG, "Unlock requested via lock entity");
         if (this->parent_ != nullptr) {
-            this->parent_->open();
+            this->parent_->unlock();
         }
 }
 

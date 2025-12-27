@@ -29,11 +29,11 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 #endif
 
 #ifdef USE_BUTTON
-  SUB_BUTTON(open_door)
+   SUB_BUTTON(unlock_door)
 #endif
 
 #ifdef USE_SWITCH
-  SUB_SWITCH(open_door)
+   SUB_SWITCH(unlock_door)
 #endif
 
 #ifdef USE_LOCK
@@ -53,7 +53,7 @@ public:
    void loop() override;
    void setup() override;
    void dump_config() override;
-   void open();
+   void unlock();
    void schedule_switch_off(uint32_t delay_ms);
    //void setup() override;
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
@@ -66,15 +66,15 @@ public:
 #endif
 
 #ifdef USE_BUTTON
-   void set_open_door_button_(button::Button *open_door_button) {
-     this->open_door_button_ = open_door_button;
-   }
+    void set_unlock_door_button_(button::Button *unlock_door_button) {
+       this->unlock_door_button_ = unlock_door_button;
+    }
 #endif
 
 #ifdef USE_SWITCH
-   void set_open_door_switch_(switch_::Switch *open_door_switch) {
-     this->open_door_switch_ = open_door_switch;
-   }
+    void set_unlock_door_switch_(switch_::Switch *unlock_door_switch) {
+       this->unlock_door_switch_ = unlock_door_switch;
+    }
 #endif
 
 #ifdef USE_LOCK

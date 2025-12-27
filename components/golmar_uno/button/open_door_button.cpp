@@ -6,9 +6,9 @@ namespace golmar_uno {
 
 static const char *const TAG = "golmar_uno.button";
 
-void open_door_button::press_action() {
+void unlock_door_button::press_action() {
     ESP_LOGD(TAG, "Sending pressed intercom button payload"); 
-    this->parent_->open(); 
+    this->parent_->unlock(); 
 }
 
 }  // namespace golmar_uno

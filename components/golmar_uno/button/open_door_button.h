@@ -7,9 +7,9 @@
 namespace esphome {
 namespace golmar_uno {
 
-class open_door_button : public button::Button, public Parented<golmar_uno_component> {
+class unlock_door_button : public button::Button, public Parented<golmar_uno_component> {
  public:
-  open_door_button() = default;
+  unlock_door_button() = default;
  protected:
   void press_action() override;
 };

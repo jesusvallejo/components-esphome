@@ -13,10 +13,10 @@ void golmar_uno_component::dump_config() {
   LOG_BINARY_SENSOR(" ", "Incoming Call Binary Sensor", this->calling_alert_binary_sensor_);
 #endif
 #ifdef USE_BUTTON
-  LOG_BUTTON(" ", "Open Door Button", this->open_door_button_);
+  LOG_BUTTON(" ", "Unlock Door Button", this->unlock_door_button_);
 #endif
 #ifdef USE_SWITCH
-  LOG_SWITCH(" ", "Open Door Switch", this->open_door_switch_);
+  LOG_SWITCH(" ", "Unlock Door Switch", this->unlock_door_switch_);
 #endif
 #ifdef USE_LOCK
   LOG_LOCK(" ", "Unlock door", this->door_lock_);
@@ -73,18 +73,18 @@ void golmar_uno_component::process_incoming_byte_(uint8_t byte) {
 }
 
 
-void golmar_uno_component::open() {
+void golmar_uno_component::unlock() {
   ESP_LOGD(TAG, "Unlock door sequence started");
   const uint8_t CONCIERGE_ADDRESS1 = 0x00;
   const uint8_t CONCIERGE_ADDRESS2 = 0x00;
   const uint8_t CONCIERGE_ADDRESS3 = this->concierge_id_;
 
   const uint8_t CONCIERGE_CALL_COMMAND = 0x22;
-  const uint8_t CONCIERGE_OPEN_COMMAND = 0x90;
+  const uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
   const uint8_t CLEAR_BUS_COMMAND = 0x11;
 
   const std::array<uint8_t, 4> call_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_CALL_COMMAND};
-  const std::array<uint8_t, 4> open_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_OPEN_COMMAND};
+  const std::array<uint8_t, 4> unlock_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_UNLOCK_COMMAND};
   const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
 
   #ifdef USE_LOCK
@@ -94,11 +94,11 @@ void golmar_uno_component::open() {
 
   this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
   ESP_LOGD(TAG, "Clear bus command sent");
-  this->set_timeout(500, [this,call_payload,open_payload,clear_bus_payload]() {
+  this->set_timeout(500, [this,call_payload,unlock_payload,clear_bus_payload]() {
     this->write_array(call_payload.data(), call_payload.size()); // call
     ESP_LOGD(TAG, "Concierge call command sent");
-    this->set_timeout(500, [this,open_payload,clear_bus_payload]() {
-      this->write_array(open_payload.data(), open_payload.size()); // open
+    this->set_timeout(500, [this,unlock_payload,clear_bus_payload]() {
+      this->write_array(unlock_payload.data(), unlock_payload.size()); // unlock
       ESP_LOGD(TAG, "Unlock door command sent");
       #ifdef USE_LOCK
           if (this->door_lock_ != nullptr)
@@ -115,9 +115,9 @@ void golmar_uno_component::open() {
 
 #ifdef USE_SWITCH
 void golmar_uno_component::schedule_switch_off(uint32_t delay_ms) {
-  if (this->open_door_switch_ != nullptr) {
+  if (this->unlock_door_switch_ != nullptr) {
     this->set_timeout(delay_ms, [this]() {
-      this->open_door_switch_->publish_state(false);
+      this->unlock_door_switch_->publish_state(false);
     });
   }
 }

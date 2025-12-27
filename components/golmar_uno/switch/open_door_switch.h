@@ -7,9 +7,9 @@
 namespace esphome {
 namespace golmar_uno {
 
-class open_door_switch : public switch_::Switch, public Parented<golmar_uno_component> {
+class unlock_door_switch : public switch_::Switch, public Parented<golmar_uno_component> {
  public:
-  open_door_switch() = default;
+  unlock_door_switch() = default;
  protected:
   void write_state(bool state) override;
 };
