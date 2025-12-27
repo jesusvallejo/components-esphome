@@ -44,6 +44,9 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 protected:
    uint8_t intercom_id_{};
    uint8_t concierge_id_{};
+   size_t match_index_ = 0;
+
+   void process_incoming_byte_(uint8_t byte);
 
 public:
 

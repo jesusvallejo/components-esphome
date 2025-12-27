@@ -41,32 +41,35 @@ void golmar_uno_component::setup() {
 
 
 void golmar_uno_component::loop() {
+    while (available()) {
+      uint8_t byte = read();
+      this->process_incoming_byte_(byte);
+    }
+}
+
+void golmar_uno_component::process_incoming_byte_(uint8_t byte) {
   const uint8_t INTERCOM_ADDRESS1 = 0x00;
   const uint8_t INTERCOM_ADDRESS2 = 0x00;
   const uint8_t INTERCOM_ADDRESS3 = this->intercom_id_;
   const uint8_t INTERCOM_COMMAND = 0x37;
 
   const uint8_t target_payload[] = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, INTERCOM_ADDRESS3, INTERCOM_COMMAND};
-    static size_t match_index = 0;
 
-    while (available()) {
-      uint8_t byte = read();
-      if (byte == target_payload[match_index]) {
-        match_index++;
-        if (match_index == sizeof(target_payload)) {
-                ESP_LOGD(TAG, "Incoming call detected");
-        #ifdef USE_BINARY_SENSOR
-            if (this->calling_alert_binary_sensor_ != nullptr) {
-                this->calling_alert_binary_sensor_->publish_state(true);
-                this->set_timeout(2000, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
-            }
-        #endif
-          match_index = 0;
-        }
-      } else {
-        match_index = (byte == target_payload[0]) ? 1 : 0;
+  if (byte == target_payload[this->match_index_]) {
+    this->match_index_++;
+    if (this->match_index_ == sizeof(target_payload)) {
+      ESP_LOGD(TAG, "Incoming call detected");
+#ifdef USE_BINARY_SENSOR
+      if (this->calling_alert_binary_sensor_ != nullptr) {
+        this->calling_alert_binary_sensor_->publish_state(true);
+        this->set_timeout(2000, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
       }
+#endif
+      this->match_index_ = 0;
     }
+  } else {
+    this->match_index_ = (byte == target_payload[0]) ? 1 : 0;
+  }
 }
 
 
