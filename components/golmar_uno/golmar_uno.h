@@ -39,12 +39,6 @@ constexpr uint8_t CONCIERGE_CONFIRM_COMMAND = 0x01;
 constexpr uint32_t DEFAULT_CALL_ALERT_DURATION_MS = 2000;
 constexpr uint32_t DEFAULT_INTER_COMMAND_DELAY_DURATION_MS = 500;
 
-// Enum for unlock state machine
-enum class UnlockState {
-  IDLE,
-  CALL_CONFIRM,
-  UNLOCK_CONFIRM
-};
 
 class golmar_uno_component : public Component, public uart::UARTDevice {
 
@@ -93,6 +87,7 @@ public:
    void unlock();
    void clear_bus();
    void incoming_call(uint8_t byte);
+   void intercom_confirm_message(uint8_t byte);
    void concierge_confirm_message(uint8_t byte);
    void schedule_switch_off(uint32_t delay_ms);
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }

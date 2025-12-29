@@ -79,14 +79,6 @@ void golmar_uno_component::intercom_confirm_message(uint8_t byte) {
   });
 }
 
-bool golmar_uno_component::read_confirmation(){
-  if(state == CONFIRMATION){
-    state = IDLE;
-    return true;
-  }
-  return false;
-}
-
 void golmar_uno_component::process_payload(uint8_t byte, const std::array<uint8_t, 4>& payload, size_t& match_index, const std::string& message, std::function<void()> on_match) {
   if (byte == payload[match_index]) {
     match_index++;
