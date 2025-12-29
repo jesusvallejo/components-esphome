@@ -43,9 +43,9 @@ void golmar_uno_component::setup() {
 void golmar_uno_component::loop() {
     while (available()) {
       uint8_t byte = read();
-      incoming_call(byte);
+      this->incoming_call(byte);
       // Check for confirmation command
-      concierge_confirm_message(byte);
+      this->concierge_confirm_message(byte);
     }
 }
 
