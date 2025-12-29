@@ -46,8 +46,8 @@ void golmar_uno_component::loop() {
       incoming_call(byte);
       // Check for confirmation command
       concierge_confirm_message(byte);
+    }
 }
-
 
 
 
