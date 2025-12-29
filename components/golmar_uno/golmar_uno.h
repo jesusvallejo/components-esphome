@@ -92,6 +92,8 @@ public:
 
    void unlock();
    void clear_bus();
+   void incoming_call(uint8_t byte);
+   void concierge_confirm_message(uint8_t byte);
    void schedule_switch_off(uint32_t delay_ms);
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
    void set_concierge_id(uint8_t concierge_id) { this->concierge_id_ = concierge_id; }
