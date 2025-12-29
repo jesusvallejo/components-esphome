@@ -22,6 +22,18 @@
 
 namespace esphome::golmar_uno {
 
+// Static/fixed addresses and commands used by the Golmar UNO protocol
+constexpr uint8_t INTERCOM_ADDRESS1 = 0x00;
+constexpr uint8_t INTERCOM_ADDRESS2 = 0x00;
+constexpr uint8_t INTERCOM_COMMAND = 0x37;
+
+constexpr uint8_t CONCIERGE_ADDRESS1 = 0x00;
+constexpr uint8_t CONCIERGE_ADDRESS2 = 0x00;
+constexpr uint8_t CLEAR_BUS_COMMAND = 0x11;
+constexpr uint8_t CONCIERGE_CALL_COMMAND = 0x22;
+constexpr uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
+
+
 class golmar_uno_component : public Component, public uart::UARTDevice {
 
 #ifdef USE_BINARY_SENSOR
@@ -48,12 +60,14 @@ protected:
 
    void process_incoming_byte_(uint8_t byte);
 
+
 public:
 
    void loop() override;
    void setup() override;
    void dump_config() override;
    void unlock();
+   void clear_bus();
    void schedule_switch_off(uint32_t delay_ms);
    //void setup() override;
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }

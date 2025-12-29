@@ -3,10 +3,9 @@
 #include "esphome/components/lock/lock.h"
 #include <array>
 
-namespace esphome {
-namespace golmar_uno {
+namespace esphome::golmar_uno {
 
-static const char *TAG = "golmar_uno.component";
+static constexpr char TAG[] = "golmar_uno.component";
 
 void golmar_uno_component::dump_config() {
 #ifdef USE_BINARY_SENSOR
@@ -48,16 +47,11 @@ void golmar_uno_component::loop() {
 }
 
 void golmar_uno_component::process_incoming_byte_(uint8_t byte) {
-  const uint8_t INTERCOM_ADDRESS1 = 0x00;
-  const uint8_t INTERCOM_ADDRESS2 = 0x00;
-  const uint8_t INTERCOM_ADDRESS3 = this->intercom_id_;
-  const uint8_t INTERCOM_COMMAND = 0x37;
-
-  const uint8_t target_payload[] = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, INTERCOM_ADDRESS3, INTERCOM_COMMAND};
+  const std::array<uint8_t, 4> target_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_COMMAND};
 
   if (byte == target_payload[this->match_index_]) {
     this->match_index_++;
-    if (this->match_index_ == sizeof(target_payload)) {
+    if (this->match_index_ == target_payload.size()) {
       ESP_LOGD(TAG, "Incoming call detected");
 #ifdef USE_BINARY_SENSOR
       if (this->calling_alert_binary_sensor_ != nullptr) {
@@ -72,20 +66,20 @@ void golmar_uno_component::process_incoming_byte_(uint8_t byte) {
   }
 }
 
+void golmar_uno_component::clear_bus() {
+  ESP_LOGD(TAG, "Clear bus command initiated");
+  const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CLEAR_BUS_COMMAND};
+
+  this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
+  ESP_LOGD(TAG, "Clear bus command sent");
+}
+
 
 void golmar_uno_component::unlock() {
   ESP_LOGD(TAG, "Unlock door sequence started");
-  const uint8_t CONCIERGE_ADDRESS1 = 0x00;
-  const uint8_t CONCIERGE_ADDRESS2 = 0x00;
-  const uint8_t CONCIERGE_ADDRESS3 = this->concierge_id_;
-
-  const uint8_t CONCIERGE_CALL_COMMAND = 0x22;
-  const uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
-  const uint8_t CLEAR_BUS_COMMAND = 0x11;
-
-  const std::array<uint8_t, 4> call_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_CALL_COMMAND};
-  const std::array<uint8_t, 4> unlock_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CONCIERGE_UNLOCK_COMMAND};
-  const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, CONCIERGE_ADDRESS3, CLEAR_BUS_COMMAND};
+  const std::array<uint8_t, 4> call_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CONCIERGE_CALL_COMMAND};
+  const std::array<uint8_t, 4> unlock_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CONCIERGE_UNLOCK_COMMAND};
+  const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CLEAR_BUS_COMMAND};
 
   #ifdef USE_LOCK
     if (this->door_lock_ != nullptr)
@@ -134,5 +128,4 @@ void golmar_uno_component::schedule_door_lock(uint32_t delay_ms) {
 #endif
 
 
-}  // namespace golmar_uno
-}  // namespace esphome 
+}  // namespace esphome::golmar_uno
