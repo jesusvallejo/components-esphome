@@ -25,13 +25,17 @@ namespace esphome::golmar_uno {
 // Static/fixed addresses and commands used by the Golmar UNO protocol
 constexpr uint8_t INTERCOM_ADDRESS1 = 0x00;
 constexpr uint8_t INTERCOM_ADDRESS2 = 0x00;
-constexpr uint8_t INTERCOM_COMMAND = 0x37;
+constexpr uint8_t INTERCOM_CALL_COMMAND = 0x37;
+constexpr uint8_t NO_ADDRESS = 0x00;
 
 constexpr uint8_t CONCIERGE_ADDRESS1 = 0x00;
 constexpr uint8_t CONCIERGE_ADDRESS2 = 0x00;
 constexpr uint8_t CLEAR_BUS_COMMAND = 0x11;
 constexpr uint8_t CONCIERGE_CALL_COMMAND = 0x22;
 constexpr uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
+
+constexpr uint32_t DEFAULT_CALL_ALERT_DURATION_MS = 2000;
+constexpr uint32_t DEFAULT_INTER_COMMAND_DELAY_DURATION_MS = 500;
 
 
 class golmar_uno_component : public Component, public uart::UARTDevice {
@@ -49,8 +53,7 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 #endif
 
 #ifdef USE_LOCK
-   // Lock to represent the door lock entity
-   lock::Lock *door_lock_ = nullptr;
+   SUB_LOCK(door_lock)
 #endif
 
 protected:
@@ -58,7 +61,7 @@ protected:
    uint8_t concierge_id_{};
    size_t match_index_ = 0;
 
-   void process_incoming_byte_(uint8_t byte);
+   void detect_incoming_call_(uint8_t byte);
 
    // Write a 4-byte payload to the bus (address1, address2, address3, command)
    void write_payload(uint8_t address1, uint8_t address2, uint8_t address3, uint8_t command);

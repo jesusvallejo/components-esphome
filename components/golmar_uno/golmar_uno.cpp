@@ -24,13 +24,13 @@ void golmar_uno_component::dump_config() {
 
 void golmar_uno_component::setup() {
 
-  #ifdef USE_BINARY_SENSOR
+  #ifdef USE_BINARY_SENSOR // INITIAL STATE NO INCOMING CALL
     if (this->calling_alert_binary_sensor_ != nullptr) {
       this->calling_alert_binary_sensor_->publish_state(false);
     }
   #endif
 
-  #ifdef USE_LOCK
+  #ifdef USE_LOCK // INITIAL STATE DOOR LOCKED
     if (this->door_lock_ != nullptr) {
       this->door_lock_->publish_state(lock::LockState::LOCK_STATE_LOCKED);
     }
@@ -38,27 +38,28 @@ void golmar_uno_component::setup() {
 
 }
 
-
 void golmar_uno_component::loop() {
     while (available()) {
       uint8_t byte = read();
-      this->process_incoming_byte_(byte);
+      this->detect_incoming_call_(byte);  // SHOULD IMPLEMENT OTHER MEANS TO DETECT OTHER PAYLOADS
     }
 }
 
-void golmar_uno_component::process_incoming_byte_(uint8_t byte) {
-  const std::array<uint8_t, 4> target_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_COMMAND};
+void golmar_uno_component::detect_incoming_call_(uint8_t byte) {
+  const std::array<uint8_t, 4> target_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_CALL_COMMAND};
 
   if (byte == target_payload[this->match_index_]) {
     this->match_index_++;
     if (this->match_index_ == target_payload.size()) {
-      ESP_LOGD(TAG, "Incoming call detected");
-#ifdef USE_BINARY_SENSOR
-      if (this->calling_alert_binary_sensor_ != nullptr) {
-        this->calling_alert_binary_sensor_->publish_state(true);
-        this->set_timeout(2000, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
-      }
-#endif
+
+      #ifdef USE_BINARY_SENSOR
+        ESP_LOGD(TAG, "Incoming call detected");
+        if (this->calling_alert_binary_sensor_ != nullptr) {
+          this->calling_alert_binary_sensor_->publish_state(true);
+          this->set_timeout(DEFAULT_CALL_ALERT_DURATION_MS, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
+        }
+      #endif
+
       this->match_index_ = 0;
     }
   } else {
@@ -67,25 +68,30 @@ void golmar_uno_component::process_incoming_byte_(uint8_t byte) {
 }
 
 void golmar_uno_component::write_payload(uint8_t address1, uint8_t address2, uint8_t address3, uint8_t command) {
+  ESP_LOGD(TAG, "Writing payload: 0x%02X 0x%02X 0x%02X 0x%02X", address1, address2, address3, command);
   const std::array<uint8_t, 4> payload = {address1, address2, address3, command};
   this->write_array(payload.data(), payload.size());
 }
 
 void golmar_uno_component::write_concierge_command(uint8_t command) {
+  ESP_LOGD(TAG, "Writing concierge command: 0x%02X", command);
   this->write_payload(CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, command);
 }
 
 void golmar_uno_component::write_intercom_command(uint8_t command) {
+  ESP_LOGD(TAG, "Writing intercom command: 0x%02X", command);
+  this->write_payload(INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, command);
+}
+
+void golmar_uno_component::schedule write_intercom_command(uint8_t command) {
+  ESP_LOGD(TAG, "Writing intercom command: 0x%02X", command);
   this->write_payload(INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, command);
 }
 
 void golmar_uno_component::clear_bus() {
-  ESP_LOGD(TAG, "Clear bus command initiated");
-  this->write_concierge_command(CLEAR_BUS_COMMAND);
-
+  this->write_payload(NO_ADDRESS, NO_ADDRESS, NO_ADDRESS, CLEAR_BUS_COMMAND);
   ESP_LOGD(TAG, "Clear bus command sent");
 }
-
 
 void golmar_uno_component::unlock() {
   ESP_LOGD(TAG, "Unlock door sequence started");
@@ -94,26 +100,21 @@ void golmar_uno_component::unlock() {
       this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKING);
   #endif
 
-  // Clear bus, call concierge, send unlock, then clear bus again — use helpers
-  this->write_concierge_command(CLEAR_BUS_COMMAND);
-  ESP_LOGD(TAG, "Clear bus command sent");
-  this->set_timeout(500, [this]() {
+  clear_bus();
+  this->set_timeout(DEFAULT_INTER_COMMAND_DELAY_DURATION_MS, [this]() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
-    ESP_LOGD(TAG, "Concierge call command sent");
-    this->set_timeout(500, [this]() {
+    this->set_timeout(DEFAULT_INTER_COMMAND_DELAY_DURATION_MS, [this]() {
       this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
-      ESP_LOGD(TAG, "Unlock door command sent");
       #ifdef USE_LOCK
           if (this->door_lock_ != nullptr)
             this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
       #endif
       this->set_timeout(4000, [this]() {
-        this->write_concierge_command(CLEAR_BUS_COMMAND);
-        ESP_LOGD(TAG, "Clear bus command sent");
-
+        this->clear_bus();
       });
     });
   });
+  ESP_LOGD(TAG, "Unlock door sequence commands scheduled");
 }
 
 #ifdef USE_SWITCH
