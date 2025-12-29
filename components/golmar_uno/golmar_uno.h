@@ -79,10 +79,10 @@ public:
    void loop() override;
    void setup() override;
    void dump_config() override;
+
    void unlock();
    void clear_bus();
    void schedule_switch_off(uint32_t delay_ms);
-   //void setup() override;
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
    void set_concierge_id(uint8_t concierge_id) { this->concierge_id_ = concierge_id; }
    
