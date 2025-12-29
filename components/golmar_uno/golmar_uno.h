@@ -53,7 +53,8 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 #endif
 
 #ifdef USE_LOCK
-   SUB_LOCK(door_lock)
+   //SUB_LOCK(door_lock) // NOT YET SUPPORTED BY ESPHOME
+   lock::Lock *door_lock_ = nullptr;
 #endif
 
 protected:
