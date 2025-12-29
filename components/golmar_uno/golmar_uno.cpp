@@ -46,7 +46,6 @@ void golmar_uno_component::loop() {
       this->incoming_call(byte);
       // Check for confirmation command
       this->concierge_confirm_message(byte);
-      ESP_LOGD(TAG, "Read byte: 0x%02X", byte);
     }
 }
 
@@ -132,14 +131,14 @@ void golmar_uno_component::unlock() {
           if (this->door_lock_ != nullptr)
             this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
         #endif
-        this->set_timeout(4000, [this]() {
-          this->clear_bus();
-          ESP_LOGD(TAG, "Final clear bus command sent");
-        });
-
     };
+
+    this->set_timeout(4000, [this]() {
+      this->clear_bus();
+      ESP_LOGD(TAG, "Final clear bus command sent");
+    });
   });
-  ESP_LOGD(TAG, "Active unlock door sequence initiated");
+
 }
 
 #ifdef USE_SWITCH
