@@ -60,6 +60,15 @@ protected:
 
    void process_incoming_byte_(uint8_t byte);
 
+   // Write a 4-byte payload to the bus (address1, address2, address3, command)
+   void write_payload(uint8_t address1, uint8_t address2, uint8_t address3, uint8_t command);
+
+   // Convenience wrapper to send a command to the concierge (uses `concierge_id_`)
+   void write_concierge_command(uint8_t command);
+
+   // Convenience wrapper to send a command to the intercom (uses `intercom_id_`)
+   void write_intercom_command(uint8_t command);
+
 
 public:
 

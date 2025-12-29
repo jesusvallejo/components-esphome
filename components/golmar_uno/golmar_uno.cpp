@@ -66,40 +66,49 @@ void golmar_uno_component::process_incoming_byte_(uint8_t byte) {
   }
 }
 
+void golmar_uno_component::write_payload(uint8_t address1, uint8_t address2, uint8_t address3, uint8_t command) {
+  const std::array<uint8_t, 4> payload = {address1, address2, address3, command};
+  this->write_array(payload.data(), payload.size());
+}
+
+void golmar_uno_component::write_concierge_command(uint8_t command) {
+  this->write_payload(CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, command);
+}
+
+void golmar_uno_component::write_intercom_command(uint8_t command) {
+  this->write_payload(INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, command);
+}
+
 void golmar_uno_component::clear_bus() {
   ESP_LOGD(TAG, "Clear bus command initiated");
-  const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CLEAR_BUS_COMMAND};
+  this->write_concierge_command(CLEAR_BUS_COMMAND);
 
-  this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
   ESP_LOGD(TAG, "Clear bus command sent");
 }
 
 
 void golmar_uno_component::unlock() {
   ESP_LOGD(TAG, "Unlock door sequence started");
-  const std::array<uint8_t, 4> call_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CONCIERGE_CALL_COMMAND};
-  const std::array<uint8_t, 4> unlock_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CONCIERGE_UNLOCK_COMMAND};
-  const std::array<uint8_t, 4> clear_bus_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CLEAR_BUS_COMMAND};
-
   #ifdef USE_LOCK
     if (this->door_lock_ != nullptr)
       this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKING);
   #endif
 
-  this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
+  // Clear bus, call concierge, send unlock, then clear bus again — use helpers
+  this->write_concierge_command(CLEAR_BUS_COMMAND);
   ESP_LOGD(TAG, "Clear bus command sent");
-  this->set_timeout(500, [this,call_payload,unlock_payload,clear_bus_payload]() {
-    this->write_array(call_payload.data(), call_payload.size()); // call
+  this->set_timeout(500, [this]() {
+    this->write_concierge_command(CONCIERGE_CALL_COMMAND);
     ESP_LOGD(TAG, "Concierge call command sent");
-    this->set_timeout(500, [this,unlock_payload,clear_bus_payload]() {
-      this->write_array(unlock_payload.data(), unlock_payload.size()); // unlock
+    this->set_timeout(500, [this]() {
+      this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
       ESP_LOGD(TAG, "Unlock door command sent");
       #ifdef USE_LOCK
           if (this->door_lock_ != nullptr)
             this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
       #endif
-      this->set_timeout(4000, [this,clear_bus_payload]() {
-        this->write_array(clear_bus_payload.data(), clear_bus_payload.size()); // clear
+      this->set_timeout(4000, [this]() {
+        this->write_concierge_command(CLEAR_BUS_COMMAND);
         ESP_LOGD(TAG, "Clear bus command sent");
 
       });
