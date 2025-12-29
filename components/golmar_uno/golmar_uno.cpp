@@ -83,11 +83,6 @@ void golmar_uno_component::write_intercom_command(uint8_t command) {
   this->write_payload(INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, command);
 }
 
-void golmar_uno_component::schedule write_intercom_command(uint8_t command) {
-  ESP_LOGD(TAG, "Writing intercom command: 0x%02X", command);
-  this->write_payload(INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, command);
-}
-
 void golmar_uno_component::clear_bus() {
   this->write_payload(NO_ADDRESS, NO_ADDRESS, NO_ADDRESS, CLEAR_BUS_COMMAND);
   ESP_LOGD(TAG, "Clear bus command sent");
