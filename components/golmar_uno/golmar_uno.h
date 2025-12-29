@@ -32,7 +32,6 @@ constexpr uint8_t NO_ADDRESS = 0x00;
 constexpr uint8_t CONCIERGE_ADDRESS1 = 0x00;
 constexpr uint8_t CONCIERGE_ADDRESS2 = 0x00;
 constexpr uint8_t CLEAR_BUS_COMMAND = 0x11;
-constexpr uint8_t CONCIERGE_CONFIRM_COMMAND = 0x01;
 constexpr uint8_t CONCIERGE_CALL_COMMAND = 0x22;
 constexpr uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
 constexpr uint8_t CONCIERGE_CONFIRM_COMMAND = 0x01;
