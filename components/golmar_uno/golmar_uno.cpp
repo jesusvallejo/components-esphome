@@ -128,7 +128,6 @@ void golmar_uno_component::unlock() {
     this->on_confirm_ = [this]() {
       this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
       ESP_LOGD(TAG, "Unlock door command sent");
-      this->on_confirm_ = [this]() {
         #ifdef USE_LOCK
           if (this->door_lock_ != nullptr)
             this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
@@ -137,7 +136,7 @@ void golmar_uno_component::unlock() {
           this->clear_bus();
           ESP_LOGD(TAG, "Final clear bus command sent");
         });
-      };
+
     };
   });
   ESP_LOGD(TAG, "Active unlock door sequence initiated");
