@@ -74,7 +74,7 @@ void golmar_uno_component::concierge_confirm_message(uint8_t byte) {
 
 void golmar_uno_component::intercom_confirm_message(uint8_t byte) {
   const std::array<uint8_t, 4> confirm_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_CONFIRM_COMMAND};
-  this->process_payload(byte, confirm_payload, this->intercom_confirm_match_index_, "Intercom Confirmation received", [this]() {
+  this->process_payload(byte, confirm_payload, this->confirm_match_index_, "Intercom Confirmation received", [this]() {
     this->on_confirm_();
   });
 }
