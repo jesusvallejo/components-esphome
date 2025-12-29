@@ -26,17 +26,26 @@ namespace esphome::golmar_uno {
 constexpr uint8_t INTERCOM_ADDRESS1 = 0x00;
 constexpr uint8_t INTERCOM_ADDRESS2 = 0x00;
 constexpr uint8_t INTERCOM_CALL_COMMAND = 0x37;
+constexpr uint8_t INTERCOM_CONFIRM_COMMAND = 0x01;
 constexpr uint8_t NO_ADDRESS = 0x00;
 
 constexpr uint8_t CONCIERGE_ADDRESS1 = 0x00;
 constexpr uint8_t CONCIERGE_ADDRESS2 = 0x00;
 constexpr uint8_t CLEAR_BUS_COMMAND = 0x11;
+constexpr uint8_t CONCIERGE_CONFIRM_COMMAND = 0x01;
 constexpr uint8_t CONCIERGE_CALL_COMMAND = 0x22;
 constexpr uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
+constexpr uint8_t CONCIERGE_CONFIRM_COMMAND = 0x01;
 
 constexpr uint32_t DEFAULT_CALL_ALERT_DURATION_MS = 2000;
 constexpr uint32_t DEFAULT_INTER_COMMAND_DELAY_DURATION_MS = 500;
 
+// Enum for unlock state machine
+enum class UnlockState {
+  IDLE,
+  CALL_CONFIRM,
+  UNLOCK_CONFIRM
+};
 
 class golmar_uno_component : public Component, public uart::UARTDevice {
 
@@ -60,9 +69,11 @@ class golmar_uno_component : public Component, public uart::UARTDevice {
 protected:
    uint8_t intercom_id_{};
    uint8_t concierge_id_{};
-   size_t match_index_ = 0;
+   size_t incoming_match_index_ = 0;
+   size_t confirm_match_index_ = 0;
+   std::function<void()> on_confirm_;
 
-   void detect_incoming_call_(uint8_t byte);
+   void process_payload(uint8_t byte, const std::array<uint8_t, 4>& payload, size_t& match_index, const std::string& message, std::function<void()> on_match);
 
    // Write a 4-byte payload to the bus (address1, address2, address3, command)
    void write_payload(uint8_t address1, uint8_t address2, uint8_t address3, uint8_t command);

@@ -36,34 +36,67 @@ void golmar_uno_component::setup() {
     }
   #endif
 
+  // Initialize confirmation callback to no-op
+  this->on_confirm_ = [](){};
 }
 
 void golmar_uno_component::loop() {
     while (available()) {
       uint8_t byte = read();
-      this->detect_incoming_call_(byte);  // SHOULD IMPLEMENT OTHER MEANS TO DETECT OTHER PAYLOADS
-    }
+      incoming_call(byte);
+      // Check for confirmation command
+      concierge_confirm_message(byte);
 }
 
-void golmar_uno_component::detect_incoming_call_(uint8_t byte) {
-  const std::array<uint8_t, 4> target_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_CALL_COMMAND};
 
-  if (byte == target_payload[this->match_index_]) {
-    this->match_index_++;
-    if (this->match_index_ == target_payload.size()) {
 
-      #ifdef USE_BINARY_SENSOR
-        ESP_LOGD(TAG, "Incoming call detected");
-        if (this->calling_alert_binary_sensor_ != nullptr) {
-          this->calling_alert_binary_sensor_->publish_state(true);
-          this->set_timeout(DEFAULT_CALL_ALERT_DURATION_MS, [this]() { this->calling_alert_binary_sensor_->publish_state(false); });
-        }
-      #endif
 
-      this->match_index_ = 0;
+void golmar_uno_component::incoming_call(uint8_t byte) {
+  const std::array<uint8_t, 4> incoming_call_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_CALL_COMMAND};
+  this->process_payload(byte, incoming_call_payload, this->incoming_match_index_, "Incoming call detected", [this]() {
+        #ifdef USE_BINARY_SENSOR
+          if (this->calling_alert_binary_sensor_ != nullptr) {
+            this->calling_alert_binary_sensor_->publish_state(true);
+            this->set_timeout(DEFAULT_CALL_ALERT_DURATION_MS, [this]() {
+              this->calling_alert_binary_sensor_->publish_state(false);
+            });
+          }
+        #endif
+      });
+}
+
+void golmar_uno_component::concierge_confirm_message(uint8_t byte) {
+  const std::array<uint8_t, 4> confirm_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CONCIERGE_CONFIRM_COMMAND};
+  this->process_payload(byte, confirm_payload, this->confirm_match_index_, "Concierge confirmation received", [this]() {
+    this->on_confirm_();
+  });
+}
+
+void golmar_uno_component::intercom_confirm_message(uint8_t byte) {
+  const std::array<uint8_t, 4> confirm_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_CONFIRM_COMMAND};
+  this->process_payload(byte, confirm_payload, this->intercom_confirm_match_index_, "Intercom Confirmation received", [this]() {
+    this->on_confirm_();
+  });
+}
+
+bool golmar_uno_component::read_confirmation(){
+  if(state == CONFIRMATION){
+    state = IDLE;
+    return true;
+  }
+  return false;
+}
+
+void golmar_uno_component::process_payload(uint8_t byte, const std::array<uint8_t, 4>& payload, size_t& match_index, const std::string& message, std::function<void()> on_match) {
+  if (byte == payload[match_index]) {
+    match_index++;
+    if (match_index == payload.size()) {
+      ESP_LOGD(TAG, "%s", message.c_str());
+      on_match();
+      match_index = 0;
     }
   } else {
-    this->match_index_ = (byte == target_payload[0]) ? 1 : 0;
+    match_index = (byte == payload[0]) ? 1 : 0;
   }
 }
 
@@ -89,27 +122,32 @@ void golmar_uno_component::clear_bus() {
 }
 
 void golmar_uno_component::unlock() {
-  ESP_LOGD(TAG, "Unlock door sequence started");
+  ESP_LOGD(TAG, "Active unlock door sequence started");
   #ifdef USE_LOCK
     if (this->door_lock_ != nullptr)
       this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKING);
   #endif
 
-  clear_bus();
-  this->set_timeout(DEFAULT_INTER_COMMAND_DELAY_DURATION_MS, [this]() {
+  this->clear_bus();
+  this->set_timeout(100, [this]() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
-    this->set_timeout(DEFAULT_INTER_COMMAND_DELAY_DURATION_MS, [this]() {
+    ESP_LOGD(TAG, "Concierge call command sent");
+    this->on_confirm_ = [this]() {
       this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
-      #ifdef USE_LOCK
-          if (this->door_lock_ != nullptr)
-            this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
+      ESP_LOGD(TAG, "Unlock door command sent");
+      this->on_confirm_ = [this]() {
+              #ifdef USE_LOCK
+        if (this->door_lock_ != nullptr)
+          this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
       #endif
-      this->set_timeout(4000, [this]() {
-        this->clear_bus();
-      });
-    });
+        this->set_timeout(4000, [this]() {
+          this->clear_bus();
+          ESP_LOGD(TAG, "Final clear bus command sent");
+        });
+      };
+    };
   });
-  ESP_LOGD(TAG, "Unlock door sequence commands scheduled");
+  ESP_LOGD(TAG, "Active unlock door sequence initiated");
 }
 
 #ifdef USE_SWITCH
