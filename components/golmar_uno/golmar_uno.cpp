@@ -121,7 +121,7 @@ void golmar_uno_component::unlock() {
   #endif
 
   this->clear_bus();
-  this->set_timeout(100, [this]() {
+  this->set_timeout(500, [this]() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
     ESP_LOGD(TAG, "Concierge call command sent");
     this->on_confirm_ = [this]() {
@@ -133,13 +133,13 @@ void golmar_uno_component::unlock() {
         #endif
     };
 
-    this->set_timeout(4000, [this]() {
+    this->set_timeout(10000, [this]() {
       this->clear_bus();
       ESP_LOGD(TAG, "Final clear bus command sent");
     });
   });
 
-}
+}  
 
 #ifdef USE_SWITCH
 void golmar_uno_component::schedule_switch_off(uint32_t delay_ms) {
