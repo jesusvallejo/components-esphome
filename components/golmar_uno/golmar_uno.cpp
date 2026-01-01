@@ -116,6 +116,14 @@ void golmar_uno_component::clear_bus() {
   ESP_LOGD(TAG, "Clear bus command sent");
 }
 
+void golmar_uno_component::on_communication_error() {
+  ESP_LOGE(TAG, "Communication error: No confirmation received, Communication problem");
+  #ifdef USE_LOCK
+    if (this->door_lock_ != nullptr)
+      this->door_lock_->publish_state(lock::LockState::LOCK_STATE_JAMMED);
+  #endif
+}
+
 void golmar_uno_component::unlock() { // keep 500ms minimum interval between commands
   ESP_LOGD(TAG, "Active unlock door sequence started");
   #ifdef USE_LOCK
@@ -127,6 +135,14 @@ void golmar_uno_component::unlock() { // keep 500ms minimum interval between com
   this->unlock_sequence_active_ = true;
   this->set_timeout(500, [this]() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
+
+    // If no confirmation within 5 seconds, report communication error
+    this->set_timeout(5000, [this]() {
+      if (this->unlock_sequence_active_) {
+        this->on_communication_error();
+        this->unlock_sequence_active_ = false;
+      }
+    });
 
     // allway clear bus after 15 seconds
     this->set_timeout(15000, [this]() {
@@ -147,7 +163,6 @@ void golmar_uno_component::unlock() { // keep 500ms minimum interval between com
       });
     };
   });
-
 }  
 
 #ifdef USE_SWITCH
