@@ -64,7 +64,8 @@ protected:
    uint8_t concierge_id_{};
    size_t incoming_match_index_ = 0;
    size_t confirm_match_index_ = 0;
-   std::function<void()> on_confirm_;
+   std::function<void()> on_call_confirm_;
+   std::function<void()> on_open_confirm_;
 
    void process_payload(uint8_t byte, const std::array<uint8_t, 4>& payload, size_t& match_index, const std::string& message, std::function<void()> on_match);
 

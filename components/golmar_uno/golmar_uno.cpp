@@ -37,7 +37,8 @@ void golmar_uno_component::setup() {
   #endif
 
   // Initialize confirmation callback to no-op
-  this->on_confirm_ = [](){};
+  this->on_call_confirm_ = [](){};
+  this->on_open_confirm_ = [](){};
 }
 
 void golmar_uno_component::loop() {
@@ -68,14 +69,14 @@ void golmar_uno_component::incoming_call(uint8_t byte) {
 void golmar_uno_component::concierge_confirm_message(uint8_t byte) {
   const std::array<uint8_t, 4> confirm_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CONCIERGE_CONFIRM_COMMAND};
   this->process_payload(byte, confirm_payload, this->confirm_match_index_, "Concierge confirmation received", [this]() {
-    this->on_confirm_();
+    this->on_call_confirm_();
   });
 }
 
 void golmar_uno_component::intercom_confirm_message(uint8_t byte) {
   const std::array<uint8_t, 4> confirm_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_CONFIRM_COMMAND};
   this->process_payload(byte, confirm_payload, this->confirm_match_index_, "Intercom Confirmation received", [this]() {
-    this->on_confirm_();
+    this->on_call_confirm_();
   });
 }
 
@@ -129,7 +130,7 @@ void golmar_uno_component::unlock() {
       this->clear_bus();
     });
 
-    this->on_confirm_ = [this]() { // confirm call is ongoing
+    this->on_call_confirm_ = [this]() { // confirm call is ongoing
       this->set_timeout(500, [this]() { 
         this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
         #ifdef USE_LOCK
