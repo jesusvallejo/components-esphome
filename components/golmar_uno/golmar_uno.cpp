@@ -123,17 +123,15 @@ void golmar_uno_component::unlock() {
   this->clear_bus();
   this->set_timeout(500, [this]() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
-    ESP_LOGD(TAG, "Concierge call command sent");
-    
+
     // allway clear bus after 20 seconds
     this->set_timeout(20000, [this]() {
       this->clear_bus();
-      ESP_LOGD(TAG, "Clear bus command sent");
     });
-    
+
     this->on_confirm_ = [this]() {
       this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
-      ESP_LOGD(TAG, "Unlock door command sent");
+     
       #ifdef USE_LOCK
         if (this->door_lock_ != nullptr)
           this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
