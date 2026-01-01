@@ -125,10 +125,10 @@ void golmar_uno_component::unlock() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
     ESP_LOGD(TAG, "Concierge call command sent");
     
-    // Set timeout to clear bus if no confirmation arrives
-    this->set_timeout(10000, [this]() {
+    // allway clear bus after 20 seconds
+    this->set_timeout(20000, [this]() {
       this->clear_bus();
-      ESP_LOGD(TAG, "Clear bus command sent - no confirmation received");
+      ESP_LOGD(TAG, "Clear bus command sent");
     });
     
     this->on_confirm_ = [this]() {
@@ -138,12 +138,6 @@ void golmar_uno_component::unlock() {
         if (this->door_lock_ != nullptr)
           this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
       #endif
-      
-      // Clear bus after 5 seconds if confirmation arrives
-      this->set_timeout(5000, [this]() {
-        this->clear_bus();
-        ESP_LOGD(TAG, "Final clear bus command sent");
-      });
     };
   });
 
