@@ -82,13 +82,6 @@ protected:
    // Convenience wrapper to send a command to the intercom (uses `intercom_id_`)
    void write_intercom_command(uint8_t command);
 
-
-public:
-
-   void loop() override;
-   void setup() override;
-   void dump_config() override;
-
    void unlock();
    void clear_bus();
    void incoming_call(uint8_t byte);
@@ -96,6 +89,13 @@ public:
    void concierge_confirm_message(uint8_t byte);
    void on_communication_error();
    void schedule_switch_off(uint32_t delay_ms);
+
+
+public:
+
+   void loop() override;
+   void setup() override;
+   void dump_config() override;
    void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
    void set_concierge_id(uint8_t concierge_id) { this->concierge_id_ = concierge_id; }
    
