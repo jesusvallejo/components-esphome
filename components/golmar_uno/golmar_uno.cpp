@@ -116,7 +116,7 @@ void golmar_uno_component::clear_bus() {
   ESP_LOGD(TAG, "Clear bus command sent");
 }
 
-void golmar_uno_component::unlock() {
+void golmar_uno_component::unlock() { // keep 500ms minimum interval between commands
   ESP_LOGD(TAG, "Active unlock door sequence started");
   #ifdef USE_LOCK
     if (this->door_lock_ != nullptr)
