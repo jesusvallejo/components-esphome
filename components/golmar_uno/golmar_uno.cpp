@@ -130,12 +130,12 @@ void golmar_uno_component::unlock() {
     });
 
     this->on_confirm_ = [this]() { // confirm call is ongoing
-      this->set_timeout(500, [this]() { this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
-     
-      #ifdef USE_LOCK
-        if (this->door_lock_ != nullptr)
-          this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
-      #endif
+      this->set_timeout(500, [this]() { 
+        this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
+        #ifdef USE_LOCK
+          if (this->door_lock_ != nullptr)
+            this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
+        #endif
       });
     };
   });
