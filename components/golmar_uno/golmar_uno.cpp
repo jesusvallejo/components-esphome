@@ -37,8 +37,8 @@ void golmar_uno_component::setup() {
   #endif
 
   // Initialize confirmation callback to no-op
-  this->on_call_confirm_ = [](){};
-  this->on_open_confirm_ = [](){};
+  this->on_confirm_concierge_ = [](){};
+  this->on_confirm_intercom_ = [](){};
 }
 
 void golmar_uno_component::loop() {
@@ -68,15 +68,17 @@ void golmar_uno_component::incoming_call(uint8_t byte) {
 
 void golmar_uno_component::concierge_confirm_message(uint8_t byte) {
   const std::array<uint8_t, 4> confirm_payload = {CONCIERGE_ADDRESS1, CONCIERGE_ADDRESS2, this->concierge_id_, CONCIERGE_CONFIRM_COMMAND};
-  this->process_payload(byte, confirm_payload, this->confirm_match_index_, "Concierge confirmation received", [this]() {
-    this->on_call_confirm_();
+  this->process_payload(byte, confirm_payload, this->concierge_confirm_match_index_, "Concierge confirmation received", [this]() {
+    if (this->unlock_sequence_active_) {
+      this->on_confirm_concierge_();
+    }
   });
 }
 
 void golmar_uno_component::intercom_confirm_message(uint8_t byte) {
   const std::array<uint8_t, 4> confirm_payload = {INTERCOM_ADDRESS1, INTERCOM_ADDRESS2, this->intercom_id_, INTERCOM_CONFIRM_COMMAND};
-  this->process_payload(byte, confirm_payload, this->confirm_match_index_, "Intercom Confirmation received", [this]() {
-    this->on_call_confirm_();
+  this->process_payload(byte, confirm_payload, this->intercom_confirm_match_index_, "Intercom Confirmation received", [this]() {
+    this->on_confirm_intercom_();
   });
 }
 
@@ -122,21 +124,26 @@ void golmar_uno_component::unlock() {
   #endif
 
   this->clear_bus();
+  this->unlock_sequence_active_ = true;
   this->set_timeout(500, [this]() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
 
     // allway clear bus after 15 seconds
     this->set_timeout(15000, [this]() {
       this->clear_bus();
+      this->unlock_sequence_active_ = false;
     });
 
-    this->on_call_confirm_ = [this]() { // confirm call is ongoing
+    this->on_confirm_concierge_= [this]() { // confirm call is ongoing
       this->set_timeout(500, [this]() { 
         this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
+        this->on_confirm_concierge_ = [this](){ 
+          this->unlock_sequence_active_ = false;
         #ifdef USE_LOCK
           if (this->door_lock_ != nullptr)
             this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
         #endif
+        };
       });
     };
   });

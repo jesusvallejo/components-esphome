@@ -63,9 +63,11 @@ protected:
    uint8_t intercom_id_{};
    uint8_t concierge_id_{};
    size_t incoming_match_index_ = 0;
-   size_t confirm_match_index_ = 0;
-   std::function<void()> on_call_confirm_;
-   std::function<void()> on_open_confirm_;
+   size_t concierge_confirm_match_index_ = 0;
+   size_t intercom_confirm_match_index_ = 0;
+   std::function<void()> on_confirm_concierge_;
+   std::function<void()> on_confirm_intercom_;
+   bool unlock_sequence_active_ = false;
 
    void process_payload(uint8_t byte, const std::array<uint8_t, 4>& payload, size_t& match_index, const std::string& message, std::function<void()> on_match);
 
