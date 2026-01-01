@@ -82,7 +82,7 @@ protected:
    // Convenience wrapper to send a command to the intercom (uses `intercom_id_`)
    void write_intercom_command(uint8_t command);
 
-   void unlock();
+   
    void clear_bus();
    void incoming_call(uint8_t byte);
    void intercom_confirm_message(uint8_t byte);
@@ -92,7 +92,8 @@ protected:
 
 
 public:
-
+   void unlock();
+   
    void loop() override;
    void setup() override;
    void dump_config() override;
