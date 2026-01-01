@@ -124,18 +124,19 @@ void golmar_uno_component::unlock() {
   this->set_timeout(500, [this]() {
     this->write_concierge_command(CONCIERGE_CALL_COMMAND);
 
-    // allway clear bus after 20 seconds
-    this->set_timeout(20000, [this]() {
+    // allway clear bus after 15 seconds
+    this->set_timeout(15000, [this]() {
       this->clear_bus();
     });
 
-    this->on_confirm_ = [this]() {
-      this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
+    this->on_confirm_ = [this]() { // confirm call is ongoing
+      this->set_timeout(500, [this]() { this->write_concierge_command(CONCIERGE_UNLOCK_COMMAND);
      
       #ifdef USE_LOCK
         if (this->door_lock_ != nullptr)
           this->door_lock_->publish_state(lock::LockState::LOCK_STATE_UNLOCKED);
       #endif
+      });
     };
   });
 
