@@ -23,18 +23,20 @@
 namespace esphome::golmar_uno {
 
 // Static/fixed addresses and commands used by the Golmar UNO protocol
-constexpr uint8_t INTERCOM_ADDRESS1 = 0x00;
-constexpr uint8_t INTERCOM_ADDRESS2 = 0x00;
-constexpr uint8_t INTERCOM_CALL_COMMAND = 0x37;
-constexpr uint8_t INTERCOM_CONFIRM_COMMAND = 0x01;
 constexpr uint8_t NO_ADDRESS = 0x00;
-
-constexpr uint8_t CONCIERGE_ADDRESS1 = 0x00;
-constexpr uint8_t CONCIERGE_ADDRESS2 = 0x00;
 constexpr uint8_t CLEAR_BUS_COMMAND = 0x11;
+constexpr uint8_t CONFIRM_COMMAND = 0x01;
+
+constexpr uint8_t INTERCOM_ADDRESS1 = NO_ADDRESS;
+constexpr uint8_t INTERCOM_ADDRESS2 = NO_ADDRESS;
+constexpr uint8_t INTERCOM_CALL_COMMAND = 0x37;
+
+
+
+constexpr uint8_t CONCIERGE_ADDRESS1 = NO_ADDRESS;
+constexpr uint8_t CONCIERGE_ADDRESS2 = NO_ADDRESS;
 constexpr uint8_t CONCIERGE_CALL_COMMAND = 0x22;
 constexpr uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
-constexpr uint8_t CONCIERGE_CONFIRM_COMMAND = 0x01;
 
 constexpr uint32_t DEFAULT_CALL_ALERT_DURATION_MS = 2000;
 constexpr uint32_t DEFAULT_INTER_COMMAND_DELAY_DURATION_MS = 500;
