@@ -145,7 +145,7 @@ void golmar_uno_component::unlock() { // keep 500ms minimum interval between com
     });
 
     // allways clear bus after 3 seconds
-    this->set_timeout(3000, [this]() {
+    this->set_timeout(2000, [this]() {
       this->clear_bus();
       this->unlock_sequence_active_ = false;
     });
