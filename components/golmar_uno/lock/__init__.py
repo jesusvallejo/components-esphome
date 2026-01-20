@@ -6,7 +6,7 @@ from .. import CONF_GOLMAR_UNO_ID, GolmarUnoComponent, golmar_uno_ns
 
 DEPENDENCIES = ["golmar_uno"]
 
-DoorLock = golmar_uno_ns.class_("DoorLock", lock.Lock)
+DoorLock = golmar_uno_ns.class_("DoorLock", cg.Component, lock.Lock)
 
 CONFIG_SCHEMA = lock.lock_schema(DoorLock).extend(
     {
@@ -18,5 +18,6 @@ CONFIG_SCHEMA = lock.lock_schema(DoorLock).extend(
 async def to_code(config):
     hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
     lck = await lock.new_lock(config)
+    await cg.register_component(lck, config)
     await cg.register_parented(lck, hub)
     cg.add(hub.set_door_lock(lck))

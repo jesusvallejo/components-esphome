@@ -10,10 +10,16 @@ void UnlockDoorSwitch::write_state(bool state) {
   if (state) {
     ESP_LOGD(TAG, "Unlock switch turned on");
     this->publish_state(true);
-    this->parent_->unlock();
-    this->parent_->schedule_switch_off(AUTO_SWITCH_OFF_DELAY_MS);
+    if (this->parent_ != nullptr) {
+      this->parent_->unlock();
+    }
+    // Schedule auto-off using Component's set_timeout
+    this->set_timeout("auto_off", SWITCH_AUTO_OFF_DELAY_MS, [this]() {
+      this->publish_state(false);
+    });
   } else {
-    // Allow manual turn-off
+    // Cancel pending auto-off if manually turned off
+    this->cancel_timeout("auto_off");
     this->publish_state(false);
   }
 }

@@ -1,10 +1,14 @@
 #pragma once
 
+#include "esphome/core/component.h"
 #include "esphome/components/lock/lock.h"
 #include "../golmar_uno.h"
 
 namespace esphome {
 namespace golmar_uno {
+
+/// Duration before auto-locking door (ms)
+static constexpr uint32_t LOCK_AUTO_LOCK_DELAY_MS = 10000;
 
 /**
  * @brief Lock entity for door control.
@@ -12,9 +16,18 @@ namespace golmar_uno {
  * Supports unlocking the door (which auto-locks after a delay).
  * The lock operation is a no-op as this is controlled by the intercom system.
  */
-class DoorLock : public lock::Lock, public Parented<GolmarUnoComponent> {
+class DoorLock : public Component, public lock::Lock, public Parented<GolmarUnoComponent> {
  public:
+  float get_setup_priority() const override { return setup_priority::DATA - 1.0f; }
   void control(const lock::LockCall &call) override;
+
+ protected:
+  /// Returns the traits of this lock (supports open action).
+  lock::LockTraits traits() override {
+    auto traits = lock::LockTraits();
+    traits.set_supports_open(true);
+    return traits;
+  }
 };
 
 }  // namespace golmar_uno

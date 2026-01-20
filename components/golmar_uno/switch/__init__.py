@@ -7,7 +7,9 @@ from .. import CONF_GOLMAR_UNO_ID, GolmarUnoComponent, golmar_uno_ns
 
 DEPENDENCIES = ["golmar_uno"]
 
-UnlockDoorSwitch = golmar_uno_ns.class_("UnlockDoorSwitch", switch.Switch)
+UnlockDoorSwitch = golmar_uno_ns.class_(
+    "UnlockDoorSwitch", cg.Component, switch.Switch
+)
 
 CONFIG_SCHEMA = switch.switch_schema(
     UnlockDoorSwitch,
@@ -22,5 +24,6 @@ CONFIG_SCHEMA = switch.switch_schema(
 async def to_code(config):
     hub = await cg.get_variable(config[CONF_GOLMAR_UNO_ID])
     sw = await switch.new_switch(config)
+    await cg.register_component(sw, config)
     await cg.register_parented(sw, hub)
     cg.add(hub.set_unlock_door_switch(sw))

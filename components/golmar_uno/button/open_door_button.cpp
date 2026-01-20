@@ -8,7 +8,9 @@ static const char *const TAG = "golmar_uno.button";
 
 void UnlockDoorButton::press_action() {
   ESP_LOGD(TAG, "Unlock button pressed");
-  this->parent_->unlock();
+  if (this->parent_ != nullptr) {
+    this->parent_->unlock();
+  }
 }
 
 }  // namespace golmar_uno

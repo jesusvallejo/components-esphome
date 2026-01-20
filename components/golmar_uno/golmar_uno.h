@@ -45,16 +45,17 @@ static constexpr uint8_t CONCIERGE_UNLOCK_COMMAND = 0x90;
 
 /// Default duration for call alert in milliseconds
 static constexpr uint32_t DEFAULT_CALL_ALERT_DURATION_MS = 2000;
-/// Default delay between commands in milliseconds
-static constexpr uint32_t DEFAULT_INTER_COMMAND_DELAY_MS = 500;
-/// Timeout for confirmation in milliseconds
-static constexpr uint32_t CONFIRMATION_TIMEOUT_MS = 5000;
-/// Duration before clearing bus after unlock command
-static constexpr uint32_t CLEAR_BUS_DELAY_MS = 1500;
-/// Duration before auto-locking door
-static constexpr uint32_t AUTO_LOCK_DELAY_MS = 2000;
-/// Duration before auto-turning off switch
-static constexpr uint32_t AUTO_SWITCH_OFF_DELAY_MS = 2000;
+/// Minimum delay between commands in milliseconds (protocol requirement)
+static constexpr uint32_t MIN_COMMAND_DELAY_MS = 500;
+/// Default timeout for confirmation in milliseconds
+static constexpr uint32_t DEFAULT_CONFIRMATION_TIMEOUT_MS = 1000;
+
+/// Unlock sequence state machine states
+enum class UnlockState : uint8_t {
+  IDLE,
+  WAITING_CALL_CONFIRM,
+  WAITING_UNLOCK_CONFIRM,
+};
 
 /**
  * @brief Main component class for Golmar UNO intercom system integration.
@@ -74,6 +75,9 @@ class GolmarUnoComponent : public Component, public uart::UARTDevice {
 
   void set_intercom_id(uint8_t intercom_id) { this->intercom_id_ = intercom_id; }
   void set_concierge_id(uint8_t concierge_id) { this->concierge_id_ = concierge_id; }
+  void set_call_alert_duration(uint32_t duration_ms) { this->call_alert_duration_ms_ = duration_ms; }
+  void set_unlock_timeout(uint32_t timeout_ms) { this->unlock_timeout_ms_ = timeout_ms; }
+  void set_command_delay(uint32_t delay_ms) { this->command_delay_ms_ = delay_ms; }
 
 #ifdef USE_BINARY_SENSOR
   void set_calling_alert_binary_sensor(binary_sensor::BinarySensor *sensor) {
@@ -87,12 +91,10 @@ class GolmarUnoComponent : public Component, public uart::UARTDevice {
 
 #ifdef USE_SWITCH
   void set_unlock_door_switch(switch_::Switch *switch_) { this->unlock_door_switch_ = switch_; }
-  void schedule_switch_off(uint32_t delay_ms);
 #endif
 
 #ifdef USE_LOCK
   void set_door_lock(lock::Lock *lock) { this->door_lock_ = lock; }
-  void schedule_door_lock(uint32_t delay_ms);
 #endif
 
  protected:
@@ -107,20 +109,20 @@ class GolmarUnoComponent : public Component, public uart::UARTDevice {
   /// @brief Send a command to the concierge using the configured concierge_id.
   void write_concierge_command(uint8_t command);
 
-  /// @brief Send a command to the intercom using the configured intercom_id.
-  void write_intercom_command(uint8_t command);
-
   /// @brief Clear the communication bus.
   void clear_bus();
 
   /// @brief Handle incoming call detection.
   void handle_incoming_call(uint8_t byte);
 
-  /// @brief Handle intercom confirmation messages.
-  void handle_intercom_confirm(uint8_t byte);
-
   /// @brief Handle concierge confirmation messages.
   void handle_concierge_confirm(uint8_t byte);
+
+  /// @brief Called when a concierge confirmation is received during unlock.
+  void on_concierge_confirm();
+
+  /// @brief Finish the unlock sequence, clear bus and reset state.
+  void finish_unlock_sequence(bool success);
 
   /// @brief Called when communication error occurs (no confirmation received).
   void on_communication_error();
@@ -143,18 +145,16 @@ class GolmarUnoComponent : public Component, public uart::UARTDevice {
 
   uint8_t intercom_id_{0};
   uint8_t concierge_id_{0};
+  uint32_t call_alert_duration_ms_{DEFAULT_CALL_ALERT_DURATION_MS};
+  uint32_t unlock_timeout_ms_{DEFAULT_CONFIRMATION_TIMEOUT_MS};
+  uint32_t command_delay_ms_{MIN_COMMAND_DELAY_MS};
 
   /// State tracking for payload matching
   size_t incoming_match_index_{0};
   size_t concierge_confirm_match_index_{0};
-  size_t intercom_confirm_match_index_{0};
 
-  /// Callbacks for confirmation handling
-  std::function<void()> on_confirm_concierge_{};
-  std::function<void()> on_confirm_intercom_{};
-
-  /// Flag indicating if unlock sequence is in progress
-  bool unlock_sequence_active_{false};
+  /// Current state of the unlock sequence
+  UnlockState unlock_state_{UnlockState::IDLE};
 };
 
 }  // namespace golmar_uno
