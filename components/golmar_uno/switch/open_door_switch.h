@@ -7,9 +7,19 @@
 namespace esphome {
 namespace golmar_uno {
 
-class unlock_door_switch : public switch_::Switch, public Parented<golmar_uno_component> {
+/// Duration before auto-turning off switch (ms)
+static constexpr uint32_t SWITCH_AUTO_OFF_DELAY_MS = 2000;
+
+/**
+ * @brief Switch entity to trigger door unlock sequence.
+ *
+ * When turned on, initiates the unlock sequence and automatically
+ * turns off after a delay.
+ */
+class UnlockDoorSwitch : public Component, public switch_::Switch, public Parented<GolmarUnoComponent> {
  public:
-  unlock_door_switch() = default;
+  float get_setup_priority() const override { return setup_priority::DATA - 1.0f; }
+
  protected:
   void write_state(bool state) override;
 };

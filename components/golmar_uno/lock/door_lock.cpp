@@ -6,24 +6,49 @@ namespace golmar_uno {
 
 static const char *const TAG = "golmar_uno.lock";
 
-void door_lock::unlock() {
-        ESP_LOGD(TAG, "Unlock requested via lock entity");
-        if (this->parent_ != nullptr) {
-            this->parent_->unlock();
-        }
-}
+void DoorLock::control(const lock::LockCall &call) {
+  auto state = call.get_state();
+  if (!state.has_value()) {
+    return;
+  }
 
-void door_lock::lock() {
-    // For this simple implementation, we do not support locking via the lock entity.
-    ESP_LOGD(TAG, "Lock requested via lock entity, but locking is not supported. reseting to locked state.");
-    if (this->parent_ != nullptr) {
-            this->parent_->schedule_door_lock(10000);
-        }
-}
+  switch (*state) {
+    case lock::LockState::LOCK_STATE_LOCKED:
+      // Ignore lock requests while unlock sequence is in progress
+      if (this->parent_ != nullptr && this->parent_->is_unlock_in_progress()) {
+        ESP_LOGD(TAG, "Lock request ignored - unlock sequence in progress");
+        return;
+      }
+      // Cancel any pending auto-lock
+      this->cancel_timeout("auto_lock");
+      ESP_LOGD(TAG, "Lock requested - publishing locked state");
+      this->publish_state(lock::LockState::LOCK_STATE_LOCKED);
+      break;
 
-void door_lock::control(const lock::LockCall &call) {
-    this->unlock();
-    this->lock();
+    case lock::LockState::LOCK_STATE_UNLOCKED:
+      ESP_LOGI(TAG, "Unlock requested via lock entity");
+      if (this->parent_ != nullptr) {
+        this->parent_->unlock();
+      }
+      // Schedule auto-lock using Component's set_timeout
+      this->set_timeout("auto_lock", LOCK_AUTO_LOCK_DELAY_MS, [this]() {
+        ESP_LOGD(TAG, "Auto-locking door");
+        this->publish_state(lock::LockState::LOCK_STATE_LOCKED);
+      });
+      break;
+
+    case lock::LockState::LOCK_STATE_NONE:
+      // "Open" action - unlock without auto-lock (momentary)
+      ESP_LOGI(TAG, "Open action requested via lock entity");
+      if (this->parent_ != nullptr) {
+        this->parent_->unlock();
+      }
+      break;
+
+    default:
+      ESP_LOGW(TAG, "Unsupported lock state requested");
+      break;
+  }
 }
 
 }  // namespace golmar_uno
