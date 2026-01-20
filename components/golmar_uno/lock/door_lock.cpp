@@ -6,24 +6,31 @@ namespace golmar_uno {
 
 static const char *const TAG = "golmar_uno.lock";
 
-void door_lock::unlock() {
-        ESP_LOGD(TAG, "Unlock requested via lock entity");
-        if (this->parent_ != nullptr) {
-            this->parent_->unlock();
-        }
-}
+void DoorLock::control(const lock::LockCall &call) {
+  auto state = call.get_state();
+  if (!state.has_value()) {
+    return;
+  }
 
-void door_lock::lock() {
-    // For this simple implementation, we do not support locking via the lock entity.
-    ESP_LOGD(TAG, "Lock requested via lock entity, but locking is not supported. reseting to locked state.");
-    if (this->parent_ != nullptr) {
-            this->parent_->schedule_door_lock(10000);
-        }
-}
+  switch (*state) {
+    case lock::LOCK_STATE_LOCKED:
+      // Locking is handled automatically by the intercom system
+      ESP_LOGD(TAG, "Lock requested - door will auto-lock");
+      this->publish_state(lock::LOCK_STATE_LOCKED);
+      break;
 
-void door_lock::control(const lock::LockCall &call) {
-    this->unlock();
-    this->lock();
+    case lock::LOCK_STATE_UNLOCKED:
+      ESP_LOGD(TAG, "Unlock requested via lock entity");
+      if (this->parent_ != nullptr) {
+        this->parent_->unlock();
+        // Schedule auto-lock after delay
+        this->parent_->schedule_door_lock(AUTO_LOCK_DELAY_MS);
+      }
+      break;
+
+    default:
+      break;
+  }
 }
 
 }  // namespace golmar_uno

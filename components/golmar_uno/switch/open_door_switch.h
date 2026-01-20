@@ -1,15 +1,18 @@
 #pragma once
 
-#include "esphome/core/component.h"
 #include "esphome/components/switch/switch.h"
 #include "../golmar_uno.h"
 
 namespace esphome {
 namespace golmar_uno {
 
-class unlock_door_switch : public switch_::Switch, public Parented<golmar_uno_component> {
- public:
-  unlock_door_switch() = default;
+/**
+ * @brief Switch entity to trigger door unlock sequence.
+ *
+ * When turned on, initiates the unlock sequence and automatically
+ * turns off after a delay.
+ */
+class UnlockDoorSwitch : public switch_::Switch, public Parented<GolmarUnoComponent> {
  protected:
   void write_state(bool state) override;
 };

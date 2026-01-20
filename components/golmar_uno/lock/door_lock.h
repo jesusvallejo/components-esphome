@@ -1,20 +1,21 @@
 #pragma once
 
-#include "esphome/core/component.h"
 #include "esphome/components/lock/lock.h"
 #include "../golmar_uno.h"
 
 namespace esphome {
 namespace golmar_uno {
 
-class door_lock : public lock::Lock, public Parented<golmar_uno_component> {
+/**
+ * @brief Lock entity for door control.
+ *
+ * Supports unlocking the door (which auto-locks after a delay).
+ * The lock operation is a no-op as this is controlled by the intercom system.
+ */
+class DoorLock : public lock::Lock, public Parented<GolmarUnoComponent> {
  public:
-  door_lock() = default;
   void control(const lock::LockCall &call) override;
- protected:
-  void unlock();
-  void lock();
 };
 
 }  // namespace golmar_uno
-}  // namespace esphome  
+}  // namespace esphome
