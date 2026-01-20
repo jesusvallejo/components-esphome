@@ -13,7 +13,7 @@ void DoorLock::control(const lock::LockCall &call) {
   }
 
   switch (*state) {
-    case lock::LOCK_STATE_LOCKED:
+    case lock::LockState::LOCK_STATE_LOCKED:
       // Ignore lock requests while unlock sequence is in progress
       if (this->parent_ != nullptr && this->parent_->is_unlock_in_progress()) {
         ESP_LOGD(TAG, "Lock request ignored - unlock sequence in progress");
@@ -22,10 +22,10 @@ void DoorLock::control(const lock::LockCall &call) {
       // Cancel any pending auto-lock
       this->cancel_timeout("auto_lock");
       ESP_LOGD(TAG, "Lock requested - publishing locked state");
-      this->publish_state(lock::LOCK_STATE_LOCKED);
+      this->publish_state(lock::LockState::LOCK_STATE_LOCKED);
       break;
 
-    case lock::LOCK_STATE_UNLOCKED:
+    case lock::LockState::LOCK_STATE_UNLOCKED:
       ESP_LOGI(TAG, "Unlock requested via lock entity");
       if (this->parent_ != nullptr) {
         this->parent_->unlock();
@@ -33,11 +33,11 @@ void DoorLock::control(const lock::LockCall &call) {
       // Schedule auto-lock using Component's set_timeout
       this->set_timeout("auto_lock", LOCK_AUTO_LOCK_DELAY_MS, [this]() {
         ESP_LOGD(TAG, "Auto-locking door");
-        this->publish_state(lock::LOCK_STATE_LOCKED);
+        this->publish_state(lock::LockState::LOCK_STATE_LOCKED);
       });
       break;
 
-    case lock::LOCK_STATE_NONE:
+    case lock::LockState::LOCK_STATE_NONE:
       // "Open" action - unlock without auto-lock (momentary)
       ESP_LOGI(TAG, "Open action requested via lock entity");
       if (this->parent_ != nullptr) {
