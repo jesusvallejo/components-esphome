@@ -14,6 +14,11 @@ void DoorLock::control(const lock::LockCall &call) {
 
   switch (*state) {
     case lock::LOCK_STATE_LOCKED:
+      // Ignore lock requests while unlock sequence is in progress
+      if (this->parent_ != nullptr && this->parent_->is_unlock_in_progress()) {
+        ESP_LOGD(TAG, "Lock request ignored - unlock sequence in progress");
+        return;
+      }
       // Cancel any pending auto-lock
       this->cancel_timeout("auto_lock");
       ESP_LOGD(TAG, "Lock requested - publishing locked state");

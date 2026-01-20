@@ -68,6 +68,9 @@ class GolmarUnoComponent : public Component, public uart::UARTDevice {
   /// @brief Initiate the door unlock sequence.
   void unlock();
 
+  /// @brief Check if an unlock sequence is currently in progress.
+  bool is_unlock_in_progress() const { return this->unlock_state_ != UnlockState::IDLE; }
+
   void setup() override;
   void loop() override;
   void dump_config() override;
