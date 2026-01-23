@@ -11,15 +11,28 @@ static const char *TAG = "wmbus.transceiver";
 bool RadioTransceiver::read_in_task(uint8_t *buffer, size_t length) {
   const uint8_t *buffer_end = buffer + length;
   int wait_count = 0;
+  int consecutive_empty = 0;
+  const int MAX_CONSECUTIVE_EMPTY = 50;  // Allow more retries
 
   while (buffer != buffer_end) {
     auto byte = this->read();
-    if (byte.has_value())
+    if (byte.has_value()) {
       *buffer++ = *byte;
-    else if (!ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1)))
-      return false;
-    else
-      wait_count++;
+      consecutive_empty = 0;  // Reset on successful read
+    } else {
+      consecutive_empty++;
+      if (consecutive_empty >= MAX_CONSECUTIVE_EMPTY) {
+        // Too many consecutive empty reads - packet probably ended
+        return false;
+      }
+      // Wait for interrupt or timeout (10ms total max per empty stretch)
+      if (!ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(2))) {
+        wait_count++;
+        if (wait_count > 25) {  // 50ms total timeout
+          return false;
+        }
+      }
+    }
   }
 
   return true;

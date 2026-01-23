@@ -100,13 +100,17 @@ void CC1101::setup() {
   uint32_t freq_word = compute_frequency_word(this->frequency_hz_);
 
   // Configure GDO pins
-  // GDO0: Assert on sync word detect (0x06), deassert on end of packet
-  this->write_reg_(CC1101Register::IOCFG0, 0x06);
-  // GDO2: Assert on FIFO threshold (optional, not used)
-  this->write_reg_(CC1101Register::IOCFG2, 0x29);  // CHIP_RDYn
+  // GDO0: 0x01 = Assert when RX FIFO >= threshold OR end of packet
+  // This allows interrupt when data is available to read
+  // Inverted (0x41) so it goes LOW when FIFO has data (for FALLING_EDGE interrupt)
+  this->write_reg_(CC1101Register::IOCFG0, 0x41);
+  // GDO2: CHIP_RDYn (not used)
+  this->write_reg_(CC1101Register::IOCFG2, 0x29);
 
-  // FIFO threshold: 0x07 = 32 bytes in RX FIFO (gives more margin before overflow)
-  this->write_reg_(CC1101Register::FIFOTHR, 0x07);
+  // FIFO threshold: 0x04 = 17 bytes in RX FIFO triggers threshold
+  // Lower threshold means earlier interrupt, less chance of overflow
+  // At 100kbps, 17 bytes = ~1.4ms of data, leaves 47 bytes headroom
+  this->write_reg_(CC1101Register::FIFOTHR, 0x04);
 
   // Frequency synthesizer control
   this->write_reg_(CC1101Register::FSCTRL1, 0x06);  // IF frequency ~152kHz
@@ -190,64 +194,87 @@ void CC1101::setup() {
 }
 
 optional<uint8_t> CC1101::read() {
-  // Return cached data first
+  // Return cached data first - this is the fast path
   if (this->fifo_cache_index_ < this->fifo_cache_size_) {
     return this->fifo_cache_[this->fifo_cache_index_++];
   }
 
-  // Cache exhausted, reset indices
+  // Cache exhausted, need to read from FIFO
   this->fifo_cache_index_ = 0;
   this->fifo_cache_size_ = 0;
 
-  // Check state - handle overflow state
-  CC1101State state = this->get_state_();
-  if (state == CC1101State::RXFIFO_OVERFLOW) {
-    ESP_LOGW(TAG, "RX FIFO overflow detected");
-    this->flush_rx_();
-    return {};
-  }
-
-  // Read RXBYTES register (overflow flag is bit 7)
+  // Read RXBYTES - check overflow FIRST (bit 7)
   uint8_t rxbytes = this->read_status_(CC1101Register::RXBYTES);
-  bool overflow = (rxbytes & 0x80) != 0;
-  uint8_t available = rxbytes & 0x7F;
-
-  if (overflow) {
+  
+  if (rxbytes & 0x80) {
+    // Overflow detected - must flush
     ESP_LOGW(TAG, "RX FIFO overflow");
-    this->flush_rx_();
+    this->enter_idle_();
+    this->strobe_(CC1101Command::SFRX);
+    this->enter_rx_();
+    this->sync_seen_ = false;
     return {};
   }
 
-  // Check sync word detection via GDO0 (asserted when sync detected)
-  if (this->irq_pin_ != nullptr && this->irq_pin_->digital_read()) {
-    this->sync_seen_ = true;
-  }
-
-  // If no data available, nothing to return
+  uint8_t available = rxbytes & 0x7F;
+  
+  // If no data available, return empty
   if (available == 0) {
-    if (!this->sync_seen_) {
-      return {};  // No sync, no data
-    }
-    // Sync seen but no data yet - packet reception might have ended
-    // or there's a timing issue
     return {};
   }
 
-  // Read all available bytes into cache (burst read is more efficient)
-  this->fifo_cache_size_ = std::min<size_t>(available, this->fifo_cache_.size());
+  // Read all available data immediately to prevent overflow
+  // Don't read the last byte if FIFO is not empty to avoid SPI timing issues
+  // (CC1101 errata: reading last byte while receiving can cause issues)
+  size_t to_read = available;
+  if (to_read > 1 && this->get_state_() == CC1101State::RX) {
+    // While actively receiving, leave 1 byte in FIFO as safety margin
+    to_read = available - 1;
+  }
+  
+  if (to_read == 0) {
+    return {};
+  }
+
+  // Burst read into cache
+  this->fifo_cache_size_ = std::min<size_t>(to_read, this->fifo_cache_.size());
   this->read_burst_(CC1101Register::FIFO, this->fifo_cache_.data(), this->fifo_cache_size_);
   
   return this->fifo_cache_[this->fifo_cache_index_++];
 }
 
 void CC1101::restart_rx() {
-  this->enter_idle_();
-  this->flush_rx_();
-  this->enter_rx_();
+  // Just ensure we're in RX mode and reset our state
+  // Don't flush FIFO unless there's an actual problem
+  CC1101State state = this->get_state_();
+  
+  if (state == CC1101State::RXFIFO_OVERFLOW) {
+    // Need to flush on overflow
+    this->enter_idle_();
+    this->strobe_(CC1101Command::SFRX);
+    delayMicroseconds(100);
+  } else if (state != CC1101State::RX) {
+    // Not in RX, need to enter RX
+    this->enter_idle_();
+    delayMicroseconds(100);
+  }
+  
+  if (this->get_state_() != CC1101State::RX) {
+    this->enter_rx_();
+  }
+  
+  // Reset cache state
+  this->fifo_cache_index_ = 0;
+  this->fifo_cache_size_ = 0;
+  this->sync_seen_ = false;
 }
 
 void CC1101::clear_rx() {
-  this->flush_rx_();
+  // Force flush everything
+  this->enter_idle_();
+  this->strobe_(CC1101Command::SFRX);
+  delayMicroseconds(100);
+  this->enter_rx_();
   this->fifo_cache_index_ = 0;
   this->fifo_cache_size_ = 0;
   this->sync_seen_ = false;
