@@ -214,6 +214,13 @@ optional<uint8_t> CC1101::read() {
   if (!this->sync_seen_)
     return {};
 
+  if (this->fifo_cache_index_ < this->fifo_cache_size_) {
+    return this->fifo_cache_[this->fifo_cache_index_++];
+  }
+
+  this->fifo_cache_index_ = 0;
+  this->fifo_cache_size_ = 0;
+
   uint8_t rxbytes = this->spi_read_status_(REG_RXBYTES);
   if (rxbytes & 0x80) {
     ESP_LOGW(TAG, "RX FIFO overflow");
@@ -222,11 +229,15 @@ optional<uint8_t> CC1101::read() {
     this->sync_seen_ = false;
     return {};
   }
-  if ((rxbytes & 0x7F) == 0) {
+  uint8_t available = rxbytes & 0x7F;
+  if (available == 0) {
     this->sync_seen_ = false;
     return {};
   }
-  return this->spi_read_reg_(0x3F);
+
+  this->fifo_cache_size_ = std::min<size_t>(available, this->fifo_cache_.size());
+  this->spi_read_burst_(0x3F, this->fifo_cache_.data(), this->fifo_cache_size_);
+  return this->fifo_cache_[this->fifo_cache_index_++];
 }
 
 void CC1101::restart_rx() {
@@ -252,6 +263,14 @@ uint8_t CC1101::spi_read_reg_(uint8_t address) {
   uint8_t value = this->delegate_->transfer(0x00);
   this->delegate_->end_transaction();
   return value;
+}
+
+void CC1101::spi_read_burst_(uint8_t address, uint8_t *data, size_t length) {
+  this->delegate_->begin_transaction();
+  this->delegate_->transfer(0xC0 | address);
+  for (size_t i = 0; i < length; i++)
+    data[i] = this->delegate_->transfer(0x00);
+  this->delegate_->end_transaction();
 }
 
 uint8_t CC1101::spi_read_status_(uint8_t address) {

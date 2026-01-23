@@ -19,6 +19,7 @@ public:
 
 protected:
   uint8_t spi_read_reg_(uint8_t address);
+  void spi_read_burst_(uint8_t address, uint8_t *data, size_t length);
   uint8_t spi_read_status_(uint8_t address);
   void spi_write_reg_(uint8_t address, uint8_t data);
   void spi_write_burst_(uint8_t address, std::initializer_list<uint8_t> data);
@@ -30,6 +31,9 @@ protected:
   float rx_bandwidth_hz_{200000.0f};
   float channel_spacing_hz_{200000.0f};
   bool sync_seen_{false};
+  std::array<uint8_t, 64> fifo_cache_{};
+  size_t fifo_cache_size_{0};
+  size_t fifo_cache_index_{0};
 };
 } // namespace wmbus_radio
 } // namespace esphome
