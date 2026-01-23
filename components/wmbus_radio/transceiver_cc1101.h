@@ -142,6 +142,10 @@ class CC1101 : public RadioTransceiver {
   void set_deviation(float deviation_hz);
   void set_rx_bandwidth(float bandwidth_hz);
   void set_channel_spacing(float spacing_hz);
+  
+  // Poll-based sync detection (like ESPHome) - override virtual methods
+  bool is_sync_detected() override;
+  uint8_t get_rx_bytes() override;
 
  protected:
   // SPI operations (using ESPHome-style naming)
@@ -171,6 +175,9 @@ class CC1101 : public RadioTransceiver {
   size_t fifo_cache_size_{0};
   size_t fifo_cache_index_{0};
   bool sync_seen_{false};
+  
+  // Polling-based sync detection (like ESPHome's CC1101)
+  bool gdo0_high_{false};
 };
 
 }  // namespace wmbus_radio

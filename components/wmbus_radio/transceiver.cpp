@@ -3,6 +3,7 @@
 #include "esphome/core/log.h"
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 namespace esphome {
 namespace wmbus_radio {
@@ -10,31 +11,37 @@ static const char *TAG = "wmbus.transceiver";
 
 bool RadioTransceiver::read_in_task(uint8_t *buffer, size_t length) {
   const uint8_t *buffer_end = buffer + length;
+  const uint8_t *buffer_start = buffer;
   uint32_t last_read_time = millis();
-  const uint32_t PACKET_TIMEOUT_MS = 100;  // Max time to wait for a complete packet
+  bool got_any_data = false;
+  const uint32_t PACKET_TIMEOUT_MS = 500;   // Max time to wait for complete packet
+  const uint32_t INITIAL_TIMEOUT_MS = 100;  // Longer initial timeout for sync
 
   while (buffer != buffer_end) {
     auto byte = this->read();
     if (byte.has_value()) {
       *buffer++ = *byte;
-      last_read_time = millis();  // Reset timeout on successful read
+      last_read_time = millis();
+      got_any_data = true;
     } else {
-      // Check if we've timed out waiting for more data
-      if (millis() - last_read_time > PACKET_TIMEOUT_MS) {
-        // No data for too long - packet reception probably failed
-        return false;
+      // No data available right now
+      uint32_t timeout = got_any_data ? PACKET_TIMEOUT_MS : INITIAL_TIMEOUT_MS;
+      
+      if (millis() - last_read_time > timeout) {
+        // Timed out waiting for data
+        size_t bytes_read = buffer - buffer_start;
+        if (bytes_read > 0) {
+          ESP_LOGD("transceiver", "Timeout after %zu bytes (wanted %zu)", bytes_read, length);
+        }
+        return got_any_data && (bytes_read > 0);  // Return true if we got some data
       }
       
-      // Small delay to let FIFO fill with more data
-      // At 100kbps, one byte takes ~80µs, so 500µs gives us ~6 bytes
-      delayMicroseconds(500);
-      
-      // Also check for interrupt notification (non-blocking)
-      ulTaskNotifyTake(pdTRUE, 0);
+      // Small delay to let FIFO fill - use FreeRTOS delay in task context
+      vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
 
-  return true;
+  return true;  // Got all requested bytes
 }
 
 void RadioTransceiver::set_reset_pin(InternalGPIOPin *reset_pin) {

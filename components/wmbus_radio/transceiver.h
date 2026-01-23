@@ -27,6 +27,10 @@ public:
   virtual void clear_rx();
   virtual int8_t get_rssi() = 0;
   virtual const char *get_name() = 0;
+  
+  // Poll-based packet detection (like ESPHome's CC1101 component)
+  virtual bool is_sync_detected() { return this->irq_pin_->digital_read(); }
+  virtual uint8_t get_rx_bytes() { return 0; }
 
   bool read_in_task(uint8_t *buffer, size_t length);
 

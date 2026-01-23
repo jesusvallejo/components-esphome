@@ -100,14 +100,14 @@ void CC1101::setup() {
   uint32_t freq_word = compute_frequency_word(this->frequency_hz_);
 
   // Configure GDO pins
-  // GDO0: 0x06 = Sync word detected (asserts HIGH when sync found, LOW at end of packet)
-  // This triggers interrupt on sync word detection (packet start)
+  // GDO0: 0x06 = Asserts when sync word detected, de-asserts at end of packet
+  // We'll poll this pin directly instead of using interrupts (like ESPHome does)
   this->write_reg_(CC1101Register::IOCFG0, 0x06);
   // GDO2: CHIP_RDYn (not used)
   this->write_reg_(CC1101Register::IOCFG2, 0x29);
 
-  // FIFO threshold: Lower value = earlier warning
-  // 0x07 = 32 bytes threshold
+  // FIFO threshold: 0x07 = 32 bytes threshold (TX 33, RX 32)
+  // We want early notification when data is available
   this->write_reg_(CC1101Register::FIFOTHR, 0x07);
 
   // Frequency synthesizer control
@@ -187,8 +187,10 @@ void CC1101::setup() {
     return;
   }
 
-  ESP_LOGI(TAG, "CC1101 setup complete - Freq: %.3f MHz, Bitrate: %u bps",
-           this->frequency_hz_ / 1000000.0f, this->bitrate_bps_);
+  // Log initial GDO0 state for debugging
+  bool gdo0_state = this->irq_pin_->digital_read();
+  ESP_LOGI(TAG, "CC1101 setup complete - Freq: %.3f MHz, Bitrate: %u bps, GDO0: %d",
+           this->frequency_hz_ / 1000000.0f, this->bitrate_bps_, gdo0_state);
 }
 
 optional<uint8_t> CC1101::read() {
@@ -206,11 +208,8 @@ optional<uint8_t> CC1101::read() {
   
   if (rxbytes & 0x80) {
     // Overflow detected - must flush
-    ESP_LOGW(TAG, "RX FIFO overflow");
-    this->enter_idle_();
-    this->strobe_(CC1101Command::SFRX);
-    this->enter_rx_();
-    this->sync_seen_ = false;
+    ESP_LOGW(TAG, "RX FIFO overflow detected");
+    this->flush_rx_();
     return {};
   }
 
@@ -220,11 +219,32 @@ optional<uint8_t> CC1101::read() {
   if (available == 0) {
     return {};
   }
+  
+  // In infinite packet length mode, read conservatively to avoid underflow
+  // Leave at least 1 byte in FIFO unless we're at end of packet (GDO0 low)
+  // This is because in infinite mode, we can't know exactly when packet ends
+  bool packet_ended = !this->irq_pin_->digital_read();  // GDO0 low = packet ended
+  
+  size_t to_read;
+  if (packet_ended) {
+    // Packet ended, read everything
+    to_read = available;
+  } else {
+    // Packet still in progress - leave some buffer room
+    // Read all but 1 byte to be safe
+    to_read = (available > 1) ? (available - 1) : 0;
+  }
+  
+  if (to_read == 0) {
+    return {};
+  }
 
-  // Read all available data immediately
-  // Note: Reading while in RX mode is safe as long as we check RXBYTES first
-  this->fifo_cache_size_ = std::min<size_t>(available, this->fifo_cache_.size());
+  // Read data from FIFO
+  this->fifo_cache_size_ = std::min<size_t>(to_read, this->fifo_cache_.size());
   this->read_burst_(CC1101Register::FIFO, this->fifo_cache_.data(), this->fifo_cache_size_);
+  
+  ESP_LOGV(TAG, "Read %zu bytes from FIFO (available: %u, ended: %d)", 
+           this->fifo_cache_size_, available, packet_ended);
   
   return this->fifo_cache_[this->fifo_cache_index_++];
 }
@@ -392,6 +412,17 @@ void CC1101::set_rx_bandwidth(float bandwidth_hz) {
 
 void CC1101::set_channel_spacing(float spacing_hz) {
   this->channel_spacing_hz_ = spacing_hz;
+}
+
+bool CC1101::is_sync_detected() {
+  // Poll GDO0 directly - it's HIGH when sync word is detected (with IOCFG0=0x06)
+  return this->irq_pin_->digital_read();
+}
+
+uint8_t CC1101::get_rx_bytes() {
+  uint8_t rxbytes = this->read_status_(CC1101Register::RXBYTES);
+  // Return only the count (lower 7 bits), bit 7 is overflow flag
+  return rxbytes & 0x7F;
 }
 
 }  // namespace wmbus_radio

@@ -21,6 +21,7 @@ public:
 
   uint8_t *rx_data_ptr();
   size_t rx_capacity();
+  void rx_advance(size_t bytes_read);  // Call after reading data
   bool calculate_payload_size();
   void set_rssi(int8_t rssi);
   void set_data(std::vector<uint8_t> data);
@@ -29,6 +30,7 @@ public:
 
 protected:
   std::vector<uint8_t> data_;
+  size_t rx_write_pos_ = 0;  // Current write position in buffer
 
   size_t expected_size();
   size_t expected_size_ = 0;

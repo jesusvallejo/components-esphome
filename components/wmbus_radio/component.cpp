@@ -26,8 +26,9 @@ void Radio::setup() {
                            3 * 1024, this, 2,
                            &(this->receiver_task_handle_)));
 
-  ESP_LOGI(TAG, "Receiver task created [%p]", this->receiver_task_handle_);
+  ESP_LOGI(TAG, "Receiver task created [%p] - using GDO0 polling mode", this->receiver_task_handle_);
 
+  // Note: We use polling for sync detection, but keep interrupt attached as backup
   this->radio->attach_data_interrupt(Radio::wakeup_receiver_task_from_isr,
                                      &(this->receiver_task_handle_));
 }
@@ -77,45 +78,82 @@ void Radio::wakeup_receiver_task_from_isr(TaskHandle_t *arg) {
 }
 
 void Radio::receive_frame() {
-  this->radio->restart_rx();
-
-  if (!ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(60000))) {
-    ESP_LOGD(TAG, "Radio interrupt timeout");
-    this->radio->clear_rx();
+  // Polling-based approach like ESPHome's CC1101 component
+  // Poll GDO0 directly instead of relying on interrupts
+  
+  // Brief delay to allow radio to process
+  vTaskDelay(pdMS_TO_TICKS(1));
+  
+  // Check if sync word was detected (GDO0 goes HIGH with IOCFG0=0x06)
+  if (!this->radio->is_sync_detected()) {
+    // No sync detected, wait a bit and return
+    vTaskDelay(pdMS_TO_TICKS(5));
     return;
   }
+  
+  ESP_LOGD(TAG, "Sync word detected!");
+  
+  // Sync detected - now we need to read the packet
+  // Wait for packet to arrive in FIFO
+  uint32_t start_time = millis();
+  const uint32_t PACKET_TIMEOUT_MS = 500;  // Max time to wait for packet data
+  
+  // Give some time for initial data to arrive
+  vTaskDelay(pdMS_TO_TICKS(10));
+  
+  // Create packet to receive data
   auto packet = std::make_unique<Packet>();
-
-  if (!this->radio->read_in_task(packet->rx_data_ptr(),
-                                 packet->rx_capacity())) {
-    ESP_LOGV(TAG, "Failed to read preamble");
+  
+  // First, try to read the preamble (first 3 bytes needed to determine frame type)
+  size_t preamble_cap = packet->rx_capacity();
+  ESP_LOGV(TAG, "Reading preamble (%zu bytes)", preamble_cap);
+  
+  if (!this->radio->read_in_task(packet->rx_data_ptr(), preamble_cap)) {
+    ESP_LOGD(TAG, "Failed to read preamble");
     this->radio->clear_rx();
     return;
   }
-
+  packet->rx_advance(preamble_cap);
+  
+  ESP_LOGV(TAG, "Got preamble: %02X %02X %02X", 
+           packet->rx_data_ptr()[-3], packet->rx_data_ptr()[-2], packet->rx_data_ptr()[-1]);
+  
+  // Calculate total expected packet size
   if (!packet->calculate_payload_size()) {
     ESP_LOGD(TAG, "Cannot calculate payload size");
     this->radio->clear_rx();
     return;
   }
-
-  if (!this->radio->read_in_task(packet->rx_data_ptr(),
-                                 packet->rx_capacity())) {
-    ESP_LOGW(TAG, "Failed to read data");
-    this->radio->clear_rx();
-    return;
+  
+  // Read the remaining payload
+  size_t payload_cap = packet->rx_capacity();
+  ESP_LOGV(TAG, "Reading payload (%zu bytes)", payload_cap);
+  
+  if (payload_cap > 0) {
+    if (!this->radio->read_in_task(packet->rx_data_ptr(), payload_cap)) {
+      ESP_LOGW(TAG, "Failed to read full payload (wanted %zu bytes)", payload_cap);
+      this->radio->clear_rx();
+      return;
+    }
+    packet->rx_advance(payload_cap);
   }
-
+  
+  ESP_LOGI(TAG, "Received complete packet (%zu bytes)", 
+           preamble_cap + payload_cap);
+  
+  // Success! Set RSSI and queue the packet
   packet->set_rssi(this->radio->get_rssi());
   auto packet_ptr = packet.get();
-
+  
   if (xQueueSend(this->packet_queue_, &packet_ptr, 0) == pdTRUE) {
-    ESP_LOGV(TAG, "Queue items: %zu",
-             uxQueueMessagesWaiting(this->packet_queue_));
-    ESP_LOGV(TAG, "Queue send success");
+    ESP_LOGV(TAG, "Queue items: %zu", uxQueueMessagesWaiting(this->packet_queue_));
     packet.release();
-  } else
+  } else {
     ESP_LOGW(TAG, "Queue send failed");
+  }
+  
+  // Prepare for next packet
+  this->radio->restart_rx();
 }
 
 void Radio::receiver_task(Radio *arg) {

@@ -82,14 +82,26 @@ size_t Packet::expected_size() {
 }
 
 size_t Packet::rx_capacity() {
-  // TODO: Remove side effects?
-  auto cap = this->data_.capacity() - this->data_.size();
-  this->data_.resize(this->data_.capacity());
-  return cap;
+  // Return how many bytes can still be written
+  return this->data_.capacity() - this->rx_write_pos_;
 }
 
 uint8_t *Packet::rx_data_ptr() {
-  return this->data_.data() + this->data_.size();
+  // Ensure buffer is allocated to full capacity
+  if (this->data_.size() < this->data_.capacity()) {
+    this->data_.resize(this->data_.capacity());
+  }
+  // Return pointer to current write position
+  return this->data_.data() + this->rx_write_pos_;
+}
+
+void Packet::rx_advance(size_t bytes_read) {
+  // Advance write position after successful read
+  this->rx_write_pos_ += bytes_read;
+  // Trim the vector to actual data size
+  if (this->rx_write_pos_ < this->data_.size()) {
+    this->data_.resize(this->rx_write_pos_);
+  }
 }
 
 bool Packet::calculate_payload_size() {
