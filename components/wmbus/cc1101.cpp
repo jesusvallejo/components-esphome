@@ -6,6 +6,14 @@
 #include "driver/gpio.h"
 #include "esp_rom_sys.h"
 #include "freertos/task.h"
+
+// ESP32-C3 only has SPI2_HOST
+#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32C6
+#define CC1101_SPI_HOST SPI2_HOST
+#else
+#define CC1101_SPI_HOST SPI2_HOST  // HSPI on ESP32
+#endif
+
 #endif
 
 namespace esphome {
@@ -24,6 +32,18 @@ bool CC1101::init_spi(uint8_t mosi, uint8_t miso, uint8_t clk, uint8_t cs) {
   this->clk_pin_ = clk;
   this->cs_pin_ = cs;
 
+  ESP_LOGI(TAG, "Initializing SPI: MOSI=%d, MISO=%d, CLK=%d, CS=%d", mosi, miso, clk, cs);
+
+  // Configure CS pin as GPIO output (manual control for proper reset sequence)
+  gpio_config_t io_conf = {};
+  io_conf.pin_bit_mask = (1ULL << cs);
+  io_conf.mode = GPIO_MODE_OUTPUT;
+  io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+  io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  io_conf.intr_type = GPIO_INTR_DISABLE;
+  gpio_config(&io_conf);
+  gpio_set_level(static_cast<gpio_num_t>(cs), 1);
+
   // Configure SPI bus
   spi_bus_config_t buscfg = {};
   buscfg.mosi_io_num = mosi;
@@ -32,25 +52,28 @@ bool CC1101::init_spi(uint8_t mosi, uint8_t miso, uint8_t clk, uint8_t cs) {
   buscfg.quadwp_io_num = -1;
   buscfg.quadhd_io_num = -1;
   buscfg.max_transfer_sz = 64;
+  buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
 
-  // Initialize SPI bus on SPI2_HOST (HSPI)
-  esp_err_t ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_DISABLED);
+  // Initialize SPI bus
+  esp_err_t ret = spi_bus_initialize(CC1101_SPI_HOST, &buscfg, SPI_DMA_DISABLED);
   if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
     ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
     return false;
   }
+  ESP_LOGI(TAG, "SPI bus initialized");
 
-  // Configure SPI device
+  // Configure SPI device - use -1 for CS to handle it manually
   spi_device_interface_config_t devcfg = {};
-  devcfg.clock_speed_hz = 4000000;  // 4 MHz
-  devcfg.mode = 0;                   // SPI mode 0
-  devcfg.spics_io_num = cs;
+  devcfg.clock_speed_hz = 1000000;  // 1 MHz (slower for reliability)
+  devcfg.mode = 0;                   // SPI mode 0 (CPOL=0, CPHA=0)
+  devcfg.spics_io_num = -1;          // Manual CS control
   devcfg.queue_size = 1;
+  devcfg.flags = 0;
   devcfg.pre_cb = nullptr;
   devcfg.post_cb = nullptr;
 
   spi_device_handle_t spi;
-  ret = spi_bus_add_device(SPI2_HOST, &devcfg, &spi);
+  ret = spi_bus_add_device(CC1101_SPI_HOST, &devcfg, &spi);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "Failed to add SPI device: %s", esp_err_to_name(ret));
     return false;
@@ -59,47 +82,53 @@ bool CC1101::init_spi(uint8_t mosi, uint8_t miso, uint8_t clk, uint8_t cs) {
   this->spi_handle_ = spi;
   this->spi_initialized_ = true;
   
-  ESP_LOGD(TAG, "SPI initialized: MOSI=%d, MISO=%d, CLK=%d, CS=%d", mosi, miso, clk, cs);
+  ESP_LOGI(TAG, "SPI device added successfully");
   return true;
 }
 
 void CC1101::spi_begin_() {
-  // CS is handled by ESP-IDF SPI driver
+  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 0);
+  esp_rom_delay_us(1);
 }
 
 void CC1101::spi_end_() {
-  // CS is handled by ESP-IDF SPI driver  
+  esp_rom_delay_us(1);
+  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 1);
 }
 
 uint8_t CC1101::spi_transfer_(uint8_t data) {
   if (!this->spi_initialized_ || this->spi_handle_ == nullptr) {
+    ESP_LOGE(TAG, "SPI not initialized");
     return 0;
   }
 
   spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
   
+  uint8_t rx_data = 0;
   spi_transaction_t t = {};
   t.length = 8;
   t.tx_buffer = &data;
-  t.rx_buffer = nullptr;
-  t.flags = SPI_TRANS_USE_RXDATA;
+  t.rx_buffer = &rx_data;
 
   esp_err_t ret = spi_device_polling_transmit(spi, &t);
   if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "SPI transfer failed");
+    ESP_LOGE(TAG, "SPI transfer failed: %s", esp_err_to_name(ret));
     return 0;
   }
 
-  return t.rx_data[0];
+  return rx_data;
 }
 
 void CC1101::wait_miso_low_() {
-  // Wait for MISO to go low (chip ready)
+  // Configure MISO as input temporarily to check ready state
   gpio_set_direction(static_cast<gpio_num_t>(this->miso_pin_), GPIO_MODE_INPUT);
-  int timeout = 100;
+  int timeout = 1000;  // Increased timeout
   while (gpio_get_level(static_cast<gpio_num_t>(this->miso_pin_)) && timeout > 0) {
     esp_rom_delay_us(10);
     timeout--;
+  }
+  if (timeout == 0) {
+    ESP_LOGW(TAG, "Timeout waiting for MISO low");
   }
 }
 
@@ -173,9 +202,10 @@ bool CC1101::init() {
 void CC1101::reset() {
   if (!this->spi_initialized_) return;
 
+  ESP_LOGI(TAG, "Resetting CC1101...");
+
 #ifdef USE_ESP_IDF
-  // Manual CS control for reset sequence
-  gpio_set_direction(static_cast<gpio_num_t>(this->cs_pin_), GPIO_MODE_OUTPUT);
+  // CC1101 reset sequence with manual CS control
   gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 1);
   esp_rom_delay_us(5);
   gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 0);
@@ -187,23 +217,20 @@ void CC1101::reset() {
   wait_miso_low_();
   
   // Send SRES strobe
-  spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
-  uint8_t cmd = CC1101_SRES;
-  spi_transaction_t t = {};
-  t.length = 8;
-  t.tx_buffer = &cmd;
-  spi_device_polling_transmit(spi, &t);
+  spi_transfer_(CC1101_SRES);
   
   gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 1);
   
-  // Wait for chip to be ready
-  vTaskDelay(pdMS_TO_TICKS(1));
+  // Wait for chip to be ready after reset
+  vTaskDelay(pdMS_TO_TICKS(10));
+  
+  ESP_LOGI(TAG, "CC1101 reset complete");
 #else
   spi_begin_();
   wait_miso_low_();
   spi_transfer_(CC1101_SRES);
   spi_end_();
-  delay(1);
+  delay(10);
 #endif
 }
 
@@ -211,13 +238,11 @@ void CC1101::write_reg(uint8_t addr, uint8_t value) {
   if (!this->spi_initialized_) return;
 
 #ifdef USE_ESP_IDF
-  spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
-  uint8_t tx_data[2] = {static_cast<uint8_t>(addr | CC1101_WRITE_SINGLE), value};
-  
-  spi_transaction_t t = {};
-  t.length = 16;
-  t.tx_buffer = tx_data;
-  spi_device_polling_transmit(spi, &t);
+  spi_begin_();
+  wait_miso_low_();
+  spi_transfer_(addr | CC1101_WRITE_SINGLE);
+  spi_transfer_(value);
+  spi_end_();
 #else
   spi_begin_();
   wait_miso_low_();
@@ -231,18 +256,13 @@ void CC1101::write_burst(uint8_t addr, const uint8_t *buffer, uint8_t length) {
   if (!this->spi_initialized_ || buffer == nullptr || length == 0) return;
 
 #ifdef USE_ESP_IDF
-  spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
-  
-  uint8_t *tx_data = new uint8_t[length + 1];
-  tx_data[0] = addr | CC1101_WRITE_BURST;
-  memcpy(tx_data + 1, buffer, length);
-  
-  spi_transaction_t t = {};
-  t.length = (length + 1) * 8;
-  t.tx_buffer = tx_data;
-  spi_device_polling_transmit(spi, &t);
-  
-  delete[] tx_data;
+  spi_begin_();
+  wait_miso_low_();
+  spi_transfer_(addr | CC1101_WRITE_BURST);
+  for (uint8_t i = 0; i < length; i++) {
+    spi_transfer_(buffer[i]);
+  }
+  spi_end_();
 #else
   spi_begin_();
   wait_miso_low_();
@@ -258,18 +278,12 @@ uint8_t CC1101::read_reg(uint8_t addr) {
   if (!this->spi_initialized_) return 0;
 
 #ifdef USE_ESP_IDF
-  spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
-  
-  uint8_t tx_data[2] = {static_cast<uint8_t>(addr | CC1101_READ_SINGLE), 0x00};
-  uint8_t rx_data[2] = {0};
-  
-  spi_transaction_t t = {};
-  t.length = 16;
-  t.tx_buffer = tx_data;
-  t.rx_buffer = rx_data;
-  spi_device_polling_transmit(spi, &t);
-  
-  return rx_data[1];
+  spi_begin_();
+  wait_miso_low_();
+  spi_transfer_(addr | CC1101_READ_SINGLE);
+  uint8_t value = spi_transfer_(0x00);
+  spi_end_();
+  return value;
 #else
   uint8_t value;
   spi_begin_();
@@ -285,18 +299,12 @@ uint8_t CC1101::read_status(uint8_t addr) {
   if (!this->spi_initialized_) return 0;
 
 #ifdef USE_ESP_IDF
-  spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
-  
-  uint8_t tx_data[2] = {static_cast<uint8_t>(addr | CC1101_READ_BURST), 0x00};
-  uint8_t rx_data[2] = {0};
-  
-  spi_transaction_t t = {};
-  t.length = 16;
-  t.tx_buffer = tx_data;
-  t.rx_buffer = rx_data;
-  spi_device_polling_transmit(spi, &t);
-  
-  return rx_data[1];
+  spi_begin_();
+  wait_miso_low_();
+  spi_transfer_(addr | CC1101_READ_BURST);
+  uint8_t value = spi_transfer_(0x00);
+  spi_end_();
+  return value;
 #else
   uint8_t value;
   spi_begin_();
@@ -312,24 +320,13 @@ void CC1101::read_burst(uint8_t addr, uint8_t *buffer, uint8_t length) {
   if (!this->spi_initialized_ || buffer == nullptr || length == 0) return;
 
 #ifdef USE_ESP_IDF
-  spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
-  
-  uint8_t *tx_data = new uint8_t[length + 1];
-  uint8_t *rx_data = new uint8_t[length + 1];
-  
-  memset(tx_data, 0, length + 1);
-  tx_data[0] = addr | CC1101_READ_BURST;
-  
-  spi_transaction_t t = {};
-  t.length = (length + 1) * 8;
-  t.tx_buffer = tx_data;
-  t.rx_buffer = rx_data;
-  spi_device_polling_transmit(spi, &t);
-  
-  memcpy(buffer, rx_data + 1, length);
-  
-  delete[] tx_data;
-  delete[] rx_data;
+  spi_begin_();
+  wait_miso_low_();
+  spi_transfer_(addr | CC1101_READ_BURST);
+  for (uint8_t i = 0; i < length; i++) {
+    buffer[i] = spi_transfer_(0x00);
+  }
+  spi_end_();
 #else
   spi_begin_();
   wait_miso_low_();
