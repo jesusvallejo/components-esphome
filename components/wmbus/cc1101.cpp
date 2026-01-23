@@ -120,16 +120,10 @@ uint8_t CC1101::spi_transfer_(uint8_t data) {
 }
 
 void CC1101::wait_miso_low_() {
-  // Configure MISO as input temporarily to check ready state
-  gpio_set_direction(static_cast<gpio_num_t>(this->miso_pin_), GPIO_MODE_INPUT);
-  int timeout = 1000;  // Increased timeout
-  while (gpio_get_level(static_cast<gpio_num_t>(this->miso_pin_)) && timeout > 0) {
-    esp_rom_delay_us(10);
-    timeout--;
-  }
-  if (timeout == 0) {
-    ESP_LOGW(TAG, "Timeout waiting for MISO low");
-  }
+  // Small delay to ensure CC1101 is ready
+  // Note: We don't poll MISO here because it's controlled by the SPI peripheral
+  // The CC1101 typically responds within a few microseconds
+  esp_rom_delay_us(20);
 }
 
 #else  // Arduino framework fallback
@@ -342,15 +336,11 @@ uint8_t CC1101::strobe(uint8_t cmd) {
   if (!this->spi_initialized_) return 0;
 
 #ifdef USE_ESP_IDF
-  spi_device_handle_t spi = static_cast<spi_device_handle_t>(this->spi_handle_);
-  
-  spi_transaction_t t = {};
-  t.length = 8;
-  t.tx_buffer = &cmd;
-  t.flags = SPI_TRANS_USE_RXDATA;
-  spi_device_polling_transmit(spi, &t);
-  
-  return t.rx_data[0];
+  spi_begin_();
+  wait_miso_low_();
+  uint8_t status = spi_transfer_(cmd);
+  spi_end_();
+  return status;
 #else
   uint8_t status;
   spi_begin_();
