@@ -100,17 +100,15 @@ void CC1101::setup() {
   uint32_t freq_word = compute_frequency_word(this->frequency_hz_);
 
   // Configure GDO pins
-  // GDO0: 0x01 = Assert when RX FIFO >= threshold OR end of packet
-  // This allows interrupt when data is available to read
-  // Inverted (0x41) so it goes LOW when FIFO has data (for FALLING_EDGE interrupt)
-  this->write_reg_(CC1101Register::IOCFG0, 0x41);
+  // GDO0: 0x06 = Sync word detected (asserts HIGH when sync found, LOW at end of packet)
+  // This triggers interrupt on sync word detection (packet start)
+  this->write_reg_(CC1101Register::IOCFG0, 0x06);
   // GDO2: CHIP_RDYn (not used)
   this->write_reg_(CC1101Register::IOCFG2, 0x29);
 
-  // FIFO threshold: 0x04 = 17 bytes in RX FIFO triggers threshold
-  // Lower threshold means earlier interrupt, less chance of overflow
-  // At 100kbps, 17 bytes = ~1.4ms of data, leaves 47 bytes headroom
-  this->write_reg_(CC1101Register::FIFOTHR, 0x04);
+  // FIFO threshold: Lower value = earlier warning
+  // 0x07 = 32 bytes threshold
+  this->write_reg_(CC1101Register::FIFOTHR, 0x07);
 
   // Frequency synthesizer control
   this->write_reg_(CC1101Register::FSCTRL1, 0x06);  // IF frequency ~152kHz
@@ -223,21 +221,9 @@ optional<uint8_t> CC1101::read() {
     return {};
   }
 
-  // Read all available data immediately to prevent overflow
-  // Don't read the last byte if FIFO is not empty to avoid SPI timing issues
-  // (CC1101 errata: reading last byte while receiving can cause issues)
-  size_t to_read = available;
-  if (to_read > 1 && this->get_state_() == CC1101State::RX) {
-    // While actively receiving, leave 1 byte in FIFO as safety margin
-    to_read = available - 1;
-  }
-  
-  if (to_read == 0) {
-    return {};
-  }
-
-  // Burst read into cache
-  this->fifo_cache_size_ = std::min<size_t>(to_read, this->fifo_cache_.size());
+  // Read all available data immediately
+  // Note: Reading while in RX mode is safe as long as we check RXBYTES first
+  this->fifo_cache_size_ = std::min<size_t>(available, this->fifo_cache_.size());
   this->read_burst_(CC1101Register::FIFO, this->fifo_cache_.data(), this->fifo_cache_size_);
   
   return this->fifo_cache_[this->fifo_cache_index_++];

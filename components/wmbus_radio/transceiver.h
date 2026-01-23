@@ -19,8 +19,9 @@ public:
 
   template <typename T>
   void attach_data_interrupt(void (*callback)(T *), T *arg) {
+    // Use RISING_EDGE for sync word detection (GDO0 goes HIGH when sync detected)
     this->irq_pin_->attach_interrupt(callback, arg,
-                                     gpio::INTERRUPT_FALLING_EDGE);
+                                     gpio::INTERRUPT_RISING_EDGE);
   }
   virtual void restart_rx() = 0;
   virtual void clear_rx();

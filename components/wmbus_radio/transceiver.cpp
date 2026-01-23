@@ -10,28 +10,27 @@ static const char *TAG = "wmbus.transceiver";
 
 bool RadioTransceiver::read_in_task(uint8_t *buffer, size_t length) {
   const uint8_t *buffer_end = buffer + length;
-  int wait_count = 0;
-  int consecutive_empty = 0;
-  const int MAX_CONSECUTIVE_EMPTY = 50;  // Allow more retries
+  uint32_t last_read_time = millis();
+  const uint32_t PACKET_TIMEOUT_MS = 100;  // Max time to wait for a complete packet
 
   while (buffer != buffer_end) {
     auto byte = this->read();
     if (byte.has_value()) {
       *buffer++ = *byte;
-      consecutive_empty = 0;  // Reset on successful read
+      last_read_time = millis();  // Reset timeout on successful read
     } else {
-      consecutive_empty++;
-      if (consecutive_empty >= MAX_CONSECUTIVE_EMPTY) {
-        // Too many consecutive empty reads - packet probably ended
+      // Check if we've timed out waiting for more data
+      if (millis() - last_read_time > PACKET_TIMEOUT_MS) {
+        // No data for too long - packet reception probably failed
         return false;
       }
-      // Wait for interrupt or timeout (10ms total max per empty stretch)
-      if (!ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(2))) {
-        wait_count++;
-        if (wait_count > 25) {  // 50ms total timeout
-          return false;
-        }
-      }
+      
+      // Small delay to let FIFO fill with more data
+      // At 100kbps, one byte takes ~80µs, so 500µs gives us ~6 bytes
+      delayMicroseconds(500);
+      
+      // Also check for interrupt notification (non-blocking)
+      ulTaskNotifyTake(pdTRUE, 0);
     }
   }
 
