@@ -176,13 +176,13 @@ void CC1101::reset() {
 #ifdef USE_ESP_IDF
   // Manual CS control for reset sequence
   gpio_set_direction(static_cast<gpio_num_t>(this->cs_pin_), GPIO_MODE_OUTPUT);
-  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), HIGH);
+  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 1);
   esp_rom_delay_us(5);
-  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), LOW);
+  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 0);
   esp_rom_delay_us(10);
-  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), HIGH);
+  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 1);
   esp_rom_delay_us(45);
-  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), LOW);
+  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 0);
   
   wait_miso_low_();
   
@@ -194,7 +194,7 @@ void CC1101::reset() {
   t.tx_buffer = &cmd;
   spi_device_polling_transmit(spi, &t);
   
-  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), HIGH);
+  gpio_set_level(static_cast<gpio_num_t>(this->cs_pin_), 1);
   
   // Wait for chip to be ready
   vTaskDelay(pdMS_TO_TICKS(1));
