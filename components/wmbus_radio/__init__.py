@@ -46,7 +46,7 @@ TRANSCEIVER_NAMES = {
     r.stem.removeprefix("transceiver_").upper()
     for r in Path(__file__).parent.glob("transceiver_*.cpp")
     if r.is_file()
-} - {"CC1101"}
+} | {"CC1101"}
 
 CONFIG_SCHEMA = (
     cv.Schema(
@@ -143,48 +143,3 @@ async def to_code(config):
             [(FramePtr, "frame")],
             conf,
         )
-
-
-with suppress(ImportError):
-    from ..socket_transmitter import (
-        SOCKET_SEND_ACTION_SCHEMA,
-        SocketTransmitterSendAction,
-    )
-
-    FRAME_SOCKET_SEND_SCHEMA = SOCKET_SEND_ACTION_SCHEMA.extend(
-        {
-            cv.Required(CONF_FORMAT): cv.one_of(
-                "hex",
-                "raw",
-                "rtlwmbus",
-                lower=True,
-            ),
-            cv.Optional(CONF_DATA): cv.invalid(
-                "If you want to specify data to be sent, use generic 'socket_transmitter.send' action"
-            ),
-        }
-    )
-
-    @automation.register_action(
-        "wmbus_radio.send_frame_with_socket",
-        SocketTransmitterSendAction,
-        FRAME_SOCKET_SEND_SCHEMA,
-    )
-    async def send_frame_with_socket_to_code(config, action_id, template_arg, args):
-        output_type = {
-            "hex": cg.std_string,
-            "raw": cg.std_vector.template(cg.uint8),
-            "rtlwmbus": cg.std_string,
-        }[config[CONF_FORMAT]]
-
-        paren = await cg.get_variable(config[CONF_ID])
-        var = cg.new_Pvariable(
-            action_id, cg.TemplateArguments(output_type, *template_arg), paren
-        )
-        template_ = LambdaExpression(
-            f"return frame.as_{config[CONF_FORMAT]}();", args, ""
-        )
-
-        cg.add(var.set_data(template_))
-
-        return var
