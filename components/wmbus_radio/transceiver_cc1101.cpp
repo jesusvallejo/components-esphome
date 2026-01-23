@@ -179,8 +179,14 @@ void CC1101::setup() {
   uint32_t freq_word =
       compute_frequency_word(static_cast<uint32_t>(this->frequency_hz_));
 
-  this->spi_write_reg_(REG_IOCFG0, 0x06); // IOCFG0: sync word detected
-  this->spi_write_reg_(REG_FIFOTHR, 0x0F); // FIFOTHR: high threshold
+  // GDO0: Assert on sync word, deassert on end of packet (0x06)
+  // This allows detecting when a packet starts
+  this->spi_write_reg_(REG_IOCFG0, 0x06);
+  
+  // FIFOTHR: Set RX FIFO threshold to 32 bytes (0x07)
+  // This gives us more buffer space before overflow (64-32=32 bytes margin)
+  // Bits 3:0 = FIFO_THR, value 0x07 means threshold at 32 bytes
+  this->spi_write_reg_(REG_FIFOTHR, 0x07);
 
   this->spi_write_reg_(REG_FSCTRL1, 0x06); // FSCTRL1: IF frequency
   this->spi_write_reg_(REG_FSCTRL0, 0x00); // FSCTRL0
@@ -208,45 +214,82 @@ void CC1101::setup() {
 }
 
 optional<uint8_t> CC1101::read() {
-  if (this->irq_pin_->digital_read() == false)
-    this->sync_seen_ = true;
-
-  if (!this->sync_seen_)
-    return {};
-
+  // Return cached data first
   if (this->fifo_cache_index_ < this->fifo_cache_size_) {
     return this->fifo_cache_[this->fifo_cache_index_++];
   }
 
+  // Cache exhausted, reset indices
   this->fifo_cache_index_ = 0;
   this->fifo_cache_size_ = 0;
 
+  // Check FIFO status (must check overflow FIRST)
   uint8_t rxbytes = this->spi_read_status_(REG_RXBYTES);
   if (rxbytes & 0x80) {
     ESP_LOGW(TAG, "RX FIFO overflow");
+    // Full reset sequence: IDLE -> flush -> RX
+    this->strobe_(0x36); // SIDLE
+    delayMicroseconds(100);
     this->strobe_(0x3A); // SFRX
+    delayMicroseconds(100);
     this->strobe_(0x34); // SRX
     this->sync_seen_ = false;
     return {};
   }
+
   uint8_t available = rxbytes & 0x7F;
-  if (available == 0) {
-    this->sync_seen_ = false;
+  
+  // Check sync word detection via GDO0 (asserted HIGH when sync detected)
+  if (this->irq_pin_->digital_read()) {
+    this->sync_seen_ = true;
+  }
+
+  // If no sync seen yet and no data, nothing to do
+  if (!this->sync_seen_ && available == 0) {
     return {};
   }
 
+  // If we have data, read it regardless of sync state
+  if (available == 0) {
+    // Sync seen but no data yet, keep waiting
+    return {};
+  }
+
+  // Read all available bytes into cache (burst read is more efficient)
   this->fifo_cache_size_ = std::min<size_t>(available, this->fifo_cache_.size());
   this->spi_read_burst_(0x3F, this->fifo_cache_.data(), this->fifo_cache_size_);
   return this->fifo_cache_[this->fifo_cache_index_++];
 }
 
 void CC1101::restart_rx() {
+  // Ensure we're in IDLE before flushing
   this->strobe_(0x36); // SIDLE
-  delay(1);
-  this->strobe_(0x3A); // SFRX
-  delay(1);
-  this->strobe_(0x34); // SRX
-  delay(1);
+  delayMicroseconds(500);
+  
+  // Wait for IDLE state (check MARCSTATE)
+  for (int i = 0; i < 10; i++) {
+    uint8_t state = this->spi_read_status_(0x35) & 0x1F; // MARCSTATE
+    if (state == 0x01) // IDLE
+      break;
+    delayMicroseconds(100);
+  }
+  
+  this->strobe_(0x3A); // SFRX - flush RX FIFO
+  delayMicroseconds(100);
+  this->strobe_(0x3B); // SFTX - flush TX FIFO for good measure
+  delayMicroseconds(100);
+  this->strobe_(0x34); // SRX - enter RX mode
+  delayMicroseconds(500);
+  
+  // Reset cache and sync state
+  this->fifo_cache_index_ = 0;
+  this->fifo_cache_size_ = 0;
+  this->sync_seen_ = false;
+}
+
+void CC1101::clear_rx() {
+  this->restart_rx();
+  this->sync_seen_ = false;
 }
 
 int8_t CC1101::get_rssi() {

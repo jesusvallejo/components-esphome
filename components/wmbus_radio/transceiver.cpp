@@ -33,6 +33,8 @@ void RadioTransceiver::set_irq_pin(InternalGPIOPin *irq_pin) {
   this->irq_pin_ = irq_pin;
 }
 
+void RadioTransceiver::clear_rx() { this->restart_rx(); }
+
 void RadioTransceiver::reset() {
   this->reset_pin_->digital_write(0);
   delay(5);

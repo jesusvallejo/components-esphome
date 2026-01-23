@@ -81,6 +81,7 @@ void Radio::receive_frame() {
 
   if (!ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(60000))) {
     ESP_LOGD(TAG, "Radio interrupt timeout");
+    this->radio->clear_rx();
     return;
   }
   auto packet = std::make_unique<Packet>();
@@ -88,17 +89,20 @@ void Radio::receive_frame() {
   if (!this->radio->read_in_task(packet->rx_data_ptr(),
                                  packet->rx_capacity())) {
     ESP_LOGV(TAG, "Failed to read preamble");
+    this->radio->clear_rx();
     return;
   }
 
   if (!packet->calculate_payload_size()) {
     ESP_LOGD(TAG, "Cannot calculate payload size");
+    this->radio->clear_rx();
     return;
   }
 
   if (!this->radio->read_in_task(packet->rx_data_ptr(),
                                  packet->rx_capacity())) {
     ESP_LOGW(TAG, "Failed to read data");
+    this->radio->clear_rx();
     return;
   }
 

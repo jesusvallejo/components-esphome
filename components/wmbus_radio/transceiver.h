@@ -23,6 +23,7 @@ public:
                                      gpio::INTERRUPT_FALLING_EDGE);
   }
   virtual void restart_rx() = 0;
+  virtual void clear_rx();
   virtual int8_t get_rssi() = 0;
   virtual const char *get_name() = 0;
 

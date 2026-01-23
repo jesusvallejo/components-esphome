@@ -8,6 +8,7 @@ public:
   void setup() override;
   optional<uint8_t> read() override;
   void restart_rx() override;
+  void clear_rx() override;
   int8_t get_rssi() override;
   const char *get_name() override;
 
@@ -30,10 +31,10 @@ protected:
   float deviation_hz_{50000.0f};
   float rx_bandwidth_hz_{200000.0f};
   float channel_spacing_hz_{200000.0f};
-  bool sync_seen_{false};
   std::array<uint8_t, 64> fifo_cache_{};
   size_t fifo_cache_size_{0};
   size_t fifo_cache_index_{0};
+  bool sync_seen_{false};
 };
 } // namespace wmbus_radio
 } // namespace esphome
