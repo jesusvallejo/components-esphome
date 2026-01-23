@@ -180,7 +180,7 @@ void CC1101::setup() {
       compute_frequency_word(static_cast<uint32_t>(this->frequency_hz_));
 
   this->spi_write_reg_(REG_IOCFG0, 0x41); // IOCFG0: RX FIFO threshold, inverted
-  this->spi_write_reg_(REG_FIFOTHR, 0x00); // FIFOTHR: 0 bytes
+  this->spi_write_reg_(REG_FIFOTHR, 0x00); // FIFOTHR: minimal threshold
 
   this->spi_write_reg_(REG_FSCTRL1, 0x06); // FSCTRL1: IF frequency
   this->spi_write_reg_(REG_FSCTRL0, 0x00); // FSCTRL0
@@ -208,19 +208,16 @@ void CC1101::setup() {
 }
 
 optional<uint8_t> CC1101::read() {
-  if (this->irq_pin_->digital_read() == false) {
-    uint8_t rxbytes = this->spi_read_status_(REG_RXBYTES);
-    if (rxbytes & 0x80) {
-      ESP_LOGW(TAG, "RX FIFO overflow");
-      this->strobe_(0x3A); // SFRX
-      this->strobe_(0x34); // SRX
-      return {};
-    }
-    if ((rxbytes & 0x7F) == 0)
-      return {};
-    return this->spi_read_reg_(0x3F);
+  uint8_t rxbytes = this->spi_read_status_(REG_RXBYTES);
+  if (rxbytes & 0x80) {
+    ESP_LOGW(TAG, "RX FIFO overflow");
+    this->strobe_(0x3A); // SFRX
+    this->strobe_(0x34); // SRX
+    return {};
   }
-  return {};
+  if ((rxbytes & 0x7F) == 0)
+    return {};
+  return this->spi_read_reg_(0x3F);
 }
 
 void CC1101::restart_rx() {
