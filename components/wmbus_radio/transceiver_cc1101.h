@@ -29,6 +29,7 @@ protected:
   float deviation_hz_{50000.0f};
   float rx_bandwidth_hz_{200000.0f};
   float channel_spacing_hz_{200000.0f};
+  bool sync_seen_{false};
 };
 } // namespace wmbus_radio
 } // namespace esphome
