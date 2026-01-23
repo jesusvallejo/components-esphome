@@ -46,7 +46,7 @@ TRANSCEIVER_NAMES = {
     r.stem.removeprefix("transceiver_").upper()
     for r in Path(__file__).parent.glob("transceiver_*.cpp")
     if r.is_file()
-} - {"CC1101"}
+}
 
 CONFIG_SCHEMA = (
     cv.Schema(
