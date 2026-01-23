@@ -208,16 +208,19 @@ void CC1101::setup() {
 }
 
 optional<uint8_t> CC1101::read() {
-  uint8_t rxbytes = this->spi_read_status_(REG_RXBYTES);
-  if (rxbytes & 0x80) {
-    ESP_LOGW(TAG, "RX FIFO overflow");
-    this->strobe_(0x3A); // SFRX
-    this->strobe_(0x34); // SRX
-    return {};
+  if (this->irq_pin_->digital_read() == false) {
+    uint8_t rxbytes = this->spi_read_status_(REG_RXBYTES);
+    if (rxbytes & 0x80) {
+      ESP_LOGW(TAG, "RX FIFO overflow");
+      this->strobe_(0x3A); // SFRX
+      this->strobe_(0x34); // SRX
+      return {};
+    }
+    if ((rxbytes & 0x7F) == 0)
+      return {};
+    return this->spi_read_reg_(0x3F);
   }
-  if ((rxbytes & 0x7F) == 0)
-    return {};
-  return this->spi_read_reg_(0x3F);
+  return {};
 }
 
 void CC1101::restart_rx() {
