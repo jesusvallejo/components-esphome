@@ -179,8 +179,8 @@ void CC1101::setup() {
   uint32_t freq_word =
       compute_frequency_word(static_cast<uint32_t>(this->frequency_hz_));
 
-  this->spi_write_reg_(REG_IOCFG0, 0x41); // IOCFG0: RX FIFO threshold, inverted
-  this->spi_write_reg_(REG_FIFOTHR, 0x00); // FIFOTHR: minimal threshold
+  this->spi_write_reg_(REG_IOCFG0, 0x06); // IOCFG0: sync word detected
+  this->spi_write_reg_(REG_FIFOTHR, 0x0F); // FIFOTHR: high threshold
 
   this->spi_write_reg_(REG_FSCTRL1, 0x06); // FSCTRL1: IF frequency
   this->spi_write_reg_(REG_FSCTRL0, 0x00); // FSCTRL0
