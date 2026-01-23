@@ -1,216 +1,192 @@
 #include "transceiver_cc1101.h"
-
 #include "esphome/core/log.h"
+#include <cmath>
 
 namespace esphome {
 namespace wmbus_radio {
-static const char *TAG = "CC1101";
+
+static const char *const TAG = "CC1101";
 
 namespace {
-constexpr uint32_t F_XOSC = 26000000;
-constexpr uint8_t REG_IOCFG0 = 0x02;
-constexpr uint8_t REG_FIFOTHR = 0x03;
-constexpr uint8_t REG_SYNC1 = 0x04;
-constexpr uint8_t REG_SYNC0 = 0x05;
-constexpr uint8_t REG_PKTLEN = 0x06;
-constexpr uint8_t REG_PKTCTRL1 = 0x07;
-constexpr uint8_t REG_PKTCTRL0 = 0x08;
-constexpr uint8_t REG_FSCTRL1 = 0x0B;
-constexpr uint8_t REG_FSCTRL0 = 0x0C;
-constexpr uint8_t REG_FREQ2 = 0x0D;
-constexpr uint8_t REG_MDMCFG4 = 0x10;
-constexpr uint8_t REG_MDMCFG3 = 0x11;
-constexpr uint8_t REG_MDMCFG2 = 0x12;
-constexpr uint8_t REG_MDMCFG1 = 0x13;
-constexpr uint8_t REG_MDMCFG0 = 0x14;
-constexpr uint8_t REG_DEVIATN = 0x15;
-constexpr uint8_t REG_RSSI = 0x34;
-constexpr uint8_t REG_RXBYTES = 0x3B;
-
-struct ModemConfig {
-  uint8_t mdmcfg4;
-  uint8_t mdmcfg3;
-  uint8_t mdmcfg2;
-  uint8_t mdmcfg1;
-  uint8_t mdmcfg0;
-  uint8_t deviatn;
-};
-
-uint32_t compute_frequency_word(uint32_t frequency) {
-  return (uint32_t)(((uint64_t)frequency << 16) / F_XOSC);
+// Helper function to split float into exponent and mantissa (like ESPHome)
+void split_float(float value, int mbits, uint8_t &e, uint32_t &m) {
+  int e_tmp;
+  float m_tmp = std::frexp(value, &e_tmp);
+  if (e_tmp <= mbits) {
+    e = 0;
+    m = 0;
+    return;
+  }
+  e = static_cast<uint8_t>(e_tmp - mbits - 1);
+  m = static_cast<uint32_t>(((m_tmp * 2 - 1) * (1 << (mbits + 1))));
 }
 
+// Calculate frequency register value
+uint32_t compute_frequency_word(float frequency) {
+  return static_cast<uint32_t>((frequency / XTAL_FREQUENCY) * (1 << 16));
+}
+
+// Calculate data rate registers
 void compute_drate(uint32_t bitrate, uint8_t &drate_e, uint8_t &drate_m) {
-  uint32_t best_err = 0xFFFFFFFF;
-  uint8_t best_e = 0;
-  uint8_t best_m = 0;
-  for (uint8_t e = 0; e <= 15; e++) {
-    for (uint16_t m = 0; m <= 255; m++) {
-      uint32_t rate = (uint32_t)((((uint64_t)F_XOSC) * (256 + m) * (1u << e)) >> 28);
-      uint32_t err = rate > bitrate ? (rate - bitrate) : (bitrate - rate);
-      if (err < best_err) {
-        best_err = err;
-        best_e = e;
-        best_m = (uint8_t)m;
-      }
-      if (best_err == 0)
-        break;
-    }
-    if (best_err == 0)
-      break;
-  }
-  drate_e = best_e;
-  drate_m = best_m;
+  float value = (static_cast<float>(bitrate) * (1 << 28)) / XTAL_FREQUENCY;
+  uint8_t e;
+  uint32_t m;
+  split_float(value, 8, e, m);
+  drate_e = e;
+  drate_m = static_cast<uint8_t>(m);
 }
 
-void compute_deviation(uint32_t deviation, uint8_t &dev_e, uint8_t &dev_m) {
-  uint32_t best_err = 0xFFFFFFFF;
-  uint8_t best_e = 0;
-  uint8_t best_m = 0;
-  for (uint8_t e = 0; e <= 7; e++) {
-    for (uint8_t m = 0; m <= 7; m++) {
-      uint32_t dev = (uint32_t)((((uint64_t)F_XOSC) * (8 + m) * (1u << e)) >> 17);
-      uint32_t err = dev > deviation ? (dev - deviation) : (deviation - dev);
-      if (err < best_err) {
-        best_err = err;
-        best_e = e;
-        best_m = m;
-      }
-      if (best_err == 0)
-        break;
-    }
-    if (best_err == 0)
-      break;
-  }
-  dev_e = best_e;
-  dev_m = best_m;
+// Calculate deviation register
+void compute_deviation(float deviation, uint8_t &dev_e, uint8_t &dev_m) {
+  float value = (deviation * (1 << 17)) / XTAL_FREQUENCY;
+  uint8_t e;
+  uint32_t m;
+  split_float(value, 3, e, m);
+  dev_e = e;
+  dev_m = static_cast<uint8_t>(m);
 }
 
-void compute_rx_bw(uint32_t bandwidth, uint8_t &bw_e, uint8_t &bw_m) {
+// Calculate RX filter bandwidth
+void compute_rx_bw(float bandwidth, uint8_t &bw_e, uint8_t &bw_m) {
+  // BW = XTAL / (8 * (4 + BW_M) * 2^BW_E)
+  // Find best match
   uint32_t best_err = 0xFFFFFFFF;
-  uint8_t best_e = 0;
-  uint8_t best_m = 0;
   for (uint8_t e = 0; e <= 3; e++) {
     for (uint8_t m = 0; m <= 3; m++) {
-      uint32_t bw = (uint32_t)(F_XOSC / (8 * (4 + m) * (1u << e)));
-      uint32_t err = bw > bandwidth ? (bw - bandwidth) : (bandwidth - bw);
+      float bw = XTAL_FREQUENCY / (8.0f * (4 + m) * (1 << e));
+      uint32_t err = static_cast<uint32_t>(std::abs(bw - bandwidth));
       if (err < best_err) {
         best_err = err;
-        best_e = e;
-        best_m = m;
+        bw_e = e;
+        bw_m = m;
       }
-      if (best_err == 0)
-        break;
     }
-    if (best_err == 0)
-      break;
   }
-  bw_e = best_e;
-  bw_m = best_m;
 }
 
-void compute_channel_spacing(uint32_t spacing, uint8_t &cs_e, uint8_t &cs_m) {
-  uint32_t best_err = 0xFFFFFFFF;
-  uint8_t best_e = 0;
-  uint8_t best_m = 0;
-  for (uint8_t e = 0; e <= 3; e++) {
-    for (uint16_t m = 0; m <= 255; m++) {
-      uint32_t sp = (uint32_t)((((uint64_t)F_XOSC) * (256 + m) * (1u << e)) >> 18);
-      uint32_t err = sp > spacing ? (sp - spacing) : (spacing - sp);
-      if (err < best_err) {
-        best_err = err;
-        best_e = e;
-        best_m = (uint8_t)m;
-      }
-      if (best_err == 0)
-        break;
-    }
-    if (best_err == 0)
-      break;
-  }
-  cs_e = best_e;
-  cs_m = best_m;
+// Calculate channel spacing
+void compute_channel_spacing(float spacing, uint8_t &cs_e, uint8_t &cs_m) {
+  float value = (spacing * (1 << 18)) / XTAL_FREQUENCY;
+  uint8_t e;
+  uint32_t m;
+  split_float(value, 8, e, m);
+  cs_e = e;
+  cs_m = static_cast<uint8_t>(m);
 }
 
-ModemConfig build_modem_config(uint32_t bitrate, uint32_t deviation,
-                               uint32_t rx_bandwidth,
-                               uint32_t channel_spacing) {
-  uint8_t drate_e = 0;
-  uint8_t drate_m = 0;
-  uint8_t dev_e = 0;
-  uint8_t dev_m = 0;
-  uint8_t bw_e = 0;
-  uint8_t bw_m = 0;
-  uint8_t cs_e = 0;
-  uint8_t cs_m = 0;
-
-  compute_drate(bitrate, drate_e, drate_m);
-  compute_deviation(deviation, dev_e, dev_m);
-  compute_rx_bw(rx_bandwidth, bw_e, bw_m);
-  compute_channel_spacing(channel_spacing, cs_e, cs_m);
-
-  ModemConfig config{};
-  config.mdmcfg4 = (bw_e << 6) | (bw_m << 4) | (drate_e & 0x0F);
-  config.mdmcfg3 = drate_m;
-  config.mdmcfg2 = (1u << 4) | 0x02; // 2-FSK, 16/16 sync word
-  config.mdmcfg1 = (2u << 4) | (cs_e & 0x03); // 4 preamble bytes
-  config.mdmcfg0 = cs_m;
-  config.deviatn = (dev_e << 4) | (dev_m & 0x07);
-  return config;
-}
-} // namespace
+}  // namespace
 
 void CC1101::setup() {
   this->common_setup();
-
-  ESP_LOGV(TAG, "Setup");
-  this->reset();
-  this->strobe_(0x30); // SRES
-  delay(5);
-
-  uint8_t partnum = this->spi_read_status_(0x30);
-  uint8_t version = this->spi_read_status_(0x31);
-  ESP_LOGVV(TAG, "PARTNUM: 0x%02X, VERSION: 0x%02X", partnum, version);
-
-  auto modem = build_modem_config(this->bitrate_bps_,
-                                  static_cast<uint32_t>(this->deviation_hz_),
-                                  static_cast<uint32_t>(this->rx_bandwidth_hz_),
-                                  static_cast<uint32_t>(this->channel_spacing_hz_));
-  uint32_t freq_word =
-      compute_frequency_word(static_cast<uint32_t>(this->frequency_hz_));
-
-  // GDO0: Assert on sync word, deassert on end of packet (0x06)
-  // This allows detecting when a packet starts
-  this->spi_write_reg_(REG_IOCFG0, 0x06);
+  ESP_LOGI(TAG, "Setting up CC1101...");
   
-  // FIFOTHR: Set RX FIFO threshold to 32 bytes (0x07)
-  // This gives us more buffer space before overflow (64-32=32 bytes margin)
-  // Bits 3:0 = FIFO_THR, value 0x07 means threshold at 32 bytes
-  this->spi_write_reg_(REG_FIFOTHR, 0x07);
+  // Reset the chip
+  this->reset();
+  this->strobe_(CC1101Command::SRES);
+  delay(10);
 
-  this->spi_write_reg_(REG_FSCTRL1, 0x06); // FSCTRL1: IF frequency
-  this->spi_write_reg_(REG_FSCTRL0, 0x00); // FSCTRL0
+  // Read chip identification
+  uint8_t partnum = this->read_status_(CC1101Register::PARTNUM);
+  uint8_t version = this->read_status_(CC1101Register::VERSION);
+  ESP_LOGI(TAG, "CC1101 PARTNUM: 0x%02X, VERSION: 0x%02X", partnum, version);
 
-  this->spi_write_burst_(REG_FREQ2,
-                         {BYTE(freq_word, 2), BYTE(freq_word, 1), BYTE(freq_word, 0)}); // FREQ2/1/0
+  // Calculate modem configuration
+  uint8_t drate_e, drate_m, dev_e, dev_m, bw_e, bw_m, cs_e, cs_m;
+  compute_drate(this->bitrate_bps_, drate_e, drate_m);
+  compute_deviation(this->deviation_hz_, dev_e, dev_m);
+  compute_rx_bw(this->rx_bandwidth_hz_, bw_e, bw_m);
+  compute_channel_spacing(this->channel_spacing_hz_, cs_e, cs_m);
 
-  this->spi_write_reg_(REG_MDMCFG4, modem.mdmcfg4);
-  this->spi_write_reg_(REG_MDMCFG3, modem.mdmcfg3);
-  this->spi_write_reg_(REG_MDMCFG2, modem.mdmcfg2);
-  this->spi_write_reg_(REG_MDMCFG1, modem.mdmcfg1);
-  this->spi_write_reg_(REG_MDMCFG0, modem.mdmcfg0);
-  this->spi_write_reg_(REG_DEVIATN, modem.deviatn);
+  uint32_t freq_word = compute_frequency_word(this->frequency_hz_);
 
-  this->spi_write_reg_(REG_SYNC1, 0x54);
-  this->spi_write_reg_(REG_SYNC0, 0x3D);
+  // Configure GDO pins
+  // GDO0: Assert on sync word detect (0x06), deassert on end of packet
+  this->write_reg_(CC1101Register::IOCFG0, 0x06);
+  // GDO2: Assert on FIFO threshold (optional, not used)
+  this->write_reg_(CC1101Register::IOCFG2, 0x29);  // CHIP_RDYn
 
-  this->spi_write_reg_(REG_PKTLEN, 0xFF); // PKTLEN
-  this->spi_write_reg_(REG_PKTCTRL1, 0x00); // PKTCTRL1
-  this->spi_write_reg_(REG_PKTCTRL0, 0x02); // PKTCTRL0: infinite length, no CRC
+  // FIFO threshold: 0x07 = 32 bytes in RX FIFO (gives more margin before overflow)
+  this->write_reg_(CC1101Register::FIFOTHR, 0x07);
 
-  this->strobe_(0x34); // SRX
-  delay(5);
-  ESP_LOGV(TAG, "CC1101 setup done");
+  // Frequency synthesizer control
+  this->write_reg_(CC1101Register::FSCTRL1, 0x06);  // IF frequency ~152kHz
+  this->write_reg_(CC1101Register::FSCTRL0, 0x00);
+
+  // Frequency
+  this->write_reg_(CC1101Register::FREQ2, (freq_word >> 16) & 0xFF);
+  this->write_reg_(CC1101Register::FREQ1, (freq_word >> 8) & 0xFF);
+  this->write_reg_(CC1101Register::FREQ0, freq_word & 0xFF);
+
+  // Modem configuration
+  uint8_t mdmcfg4 = (bw_e << 6) | (bw_m << 4) | (drate_e & 0x0F);
+  uint8_t mdmcfg3 = drate_m;
+  uint8_t mdmcfg2 = 0x02 | (1 << 4);  // 2-FSK, 16/16 sync word, sync mode = 16-bit
+  uint8_t mdmcfg1 = (2 << 4) | (cs_e & 0x03);  // 4 preamble bytes, channel spacing exp
+  uint8_t mdmcfg0 = cs_m;
+  uint8_t deviatn = (dev_e << 4) | (dev_m & 0x07);
+
+  this->write_reg_(CC1101Register::MDMCFG4, mdmcfg4);
+  this->write_reg_(CC1101Register::MDMCFG3, mdmcfg3);
+  this->write_reg_(CC1101Register::MDMCFG2, mdmcfg2);
+  this->write_reg_(CC1101Register::MDMCFG1, mdmcfg1);
+  this->write_reg_(CC1101Register::MDMCFG0, mdmcfg0);
+  this->write_reg_(CC1101Register::DEVIATN, deviatn);
+
+  // Sync word (WMBus Mode T: 0x543D)
+  this->write_reg_(CC1101Register::SYNC1, 0x54);
+  this->write_reg_(CC1101Register::SYNC0, 0x3D);
+
+  // Main Radio Control State Machine
+  this->write_reg_(CC1101Register::MCSM2, 0x07);  // RX_TIME disabled
+  this->write_reg_(CC1101Register::MCSM1, 0x30);  // CCA mode: always, RX->RX after packet
+  this->write_reg_(CC1101Register::MCSM0, 0x18);  // FS auto-cal when going from IDLE to RX/TX
+
+  // Frequency offset compensation
+  this->write_reg_(CC1101Register::FOCCFG, 0x16);
+
+  // Bit synchronization
+  this->write_reg_(CC1101Register::BSCFG, 0x6C);
+
+  // AGC control
+  this->write_reg_(CC1101Register::AGCCTRL2, 0x43);
+  this->write_reg_(CC1101Register::AGCCTRL1, 0x40);
+  this->write_reg_(CC1101Register::AGCCTRL0, 0x91);
+
+  // Front end configuration
+  this->write_reg_(CC1101Register::FREND1, 0x56);
+  this->write_reg_(CC1101Register::FREND0, 0x10);
+
+  // Frequency synthesizer calibration
+  this->write_reg_(CC1101Register::FSCAL3, 0xE9);
+  this->write_reg_(CC1101Register::FSCAL2, 0x2A);
+  this->write_reg_(CC1101Register::FSCAL1, 0x00);
+  this->write_reg_(CC1101Register::FSCAL0, 0x1F);
+
+  // Test registers
+  this->write_reg_(CC1101Register::TEST2, 0x81);
+  this->write_reg_(CC1101Register::TEST1, 0x35);
+  this->write_reg_(CC1101Register::TEST0, 0x09);
+
+  // Packet configuration
+  this->write_reg_(CC1101Register::PKTLEN, 0xFF);      // Max packet length
+  this->write_reg_(CC1101Register::PKTCTRL1, 0x00);   // No address check, no auto flush
+  this->write_reg_(CC1101Register::PKTCTRL0, 0x02);   // Infinite packet length mode, no CRC
+
+  // Channel
+  this->write_reg_(CC1101Register::CHANNR, 0x00);
+
+  // Calibrate and enter RX
+  this->strobe_(CC1101Command::SCAL);
+  delay(1);
+  
+  if (!this->enter_rx_()) {
+    ESP_LOGE(TAG, "Failed to enter RX mode!");
+    this->mark_failed();
+    return;
+  }
+
+  ESP_LOGI(TAG, "CC1101 setup complete - Freq: %.3f MHz, Bitrate: %u bps",
+           this->frequency_hz_ / 1000000.0f, this->bitrate_bps_);
 }
 
 optional<uint8_t> CC1101::read() {
@@ -223,127 +199,167 @@ optional<uint8_t> CC1101::read() {
   this->fifo_cache_index_ = 0;
   this->fifo_cache_size_ = 0;
 
-  // Check FIFO status (must check overflow FIRST)
-  uint8_t rxbytes = this->spi_read_status_(REG_RXBYTES);
-  if (rxbytes & 0x80) {
-    ESP_LOGW(TAG, "RX FIFO overflow");
-    // Full reset sequence: IDLE -> flush -> RX
-    this->strobe_(0x36); // SIDLE
-    delayMicroseconds(100);
-    this->strobe_(0x3A); // SFRX
-    delayMicroseconds(100);
-    this->strobe_(0x34); // SRX
-    this->sync_seen_ = false;
+  // Check state - handle overflow state
+  CC1101State state = this->get_state_();
+  if (state == CC1101State::RXFIFO_OVERFLOW) {
+    ESP_LOGW(TAG, "RX FIFO overflow detected");
+    this->flush_rx_();
     return {};
   }
 
+  // Read RXBYTES register (overflow flag is bit 7)
+  uint8_t rxbytes = this->read_status_(CC1101Register::RXBYTES);
+  bool overflow = (rxbytes & 0x80) != 0;
   uint8_t available = rxbytes & 0x7F;
-  
-  // Check sync word detection via GDO0 (asserted HIGH when sync detected)
-  if (this->irq_pin_->digital_read()) {
+
+  if (overflow) {
+    ESP_LOGW(TAG, "RX FIFO overflow");
+    this->flush_rx_();
+    return {};
+  }
+
+  // Check sync word detection via GDO0 (asserted when sync detected)
+  if (this->irq_pin_ != nullptr && this->irq_pin_->digital_read()) {
     this->sync_seen_ = true;
   }
 
-  // If no sync seen yet and no data, nothing to do
-  if (!this->sync_seen_ && available == 0) {
-    return {};
-  }
-
-  // If we have data, read it regardless of sync state
+  // If no data available, nothing to return
   if (available == 0) {
-    // Sync seen but no data yet, keep waiting
+    if (!this->sync_seen_) {
+      return {};  // No sync, no data
+    }
+    // Sync seen but no data yet - packet reception might have ended
+    // or there's a timing issue
     return {};
   }
 
   // Read all available bytes into cache (burst read is more efficient)
   this->fifo_cache_size_ = std::min<size_t>(available, this->fifo_cache_.size());
-  this->spi_read_burst_(0x3F, this->fifo_cache_.data(), this->fifo_cache_size_);
+  this->read_burst_(CC1101Register::FIFO, this->fifo_cache_.data(), this->fifo_cache_size_);
+  
   return this->fifo_cache_[this->fifo_cache_index_++];
 }
 
 void CC1101::restart_rx() {
-  // Ensure we're in IDLE before flushing
-  this->strobe_(0x36); // SIDLE
-  delayMicroseconds(500);
-  
-  // Wait for IDLE state (check MARCSTATE)
-  for (int i = 0; i < 10; i++) {
-    uint8_t state = this->spi_read_status_(0x35) & 0x1F; // MARCSTATE
-    if (state == 0x01) // IDLE
-      break;
-    delayMicroseconds(100);
-  }
-  
-  this->strobe_(0x3A); // SFRX - flush RX FIFO
-  delayMicroseconds(100);
-  this->strobe_(0x3B); // SFTX - flush TX FIFO for good measure
-  delayMicroseconds(100);
-  this->strobe_(0x34); // SRX - enter RX mode
-  delayMicroseconds(500);
-  
-  // Reset cache and sync state
+  this->enter_idle_();
+  this->flush_rx_();
+  this->enter_rx_();
+}
+
+void CC1101::clear_rx() {
+  this->flush_rx_();
   this->fifo_cache_index_ = 0;
   this->fifo_cache_size_ = 0;
   this->sync_seen_ = false;
 }
 
-void CC1101::clear_rx() {
-  this->restart_rx();
+void CC1101::flush_rx_() {
+  this->enter_idle_();
+  this->strobe_(CC1101Command::SFRX);
+  delayMicroseconds(100);
+  this->enter_rx_();
+  this->fifo_cache_index_ = 0;
+  this->fifo_cache_size_ = 0;
   this->sync_seen_ = false;
 }
 
+void CC1101::enter_idle_() {
+  this->strobe_(CC1101Command::SIDLE);
+  // Wait for IDLE state
+  this->wait_for_state_(CC1101State::IDLE, 100);
+}
+
+bool CC1101::enter_rx_() {
+  this->strobe_(CC1101Command::SRX);
+  return this->wait_for_state_(CC1101State::RX, 100);
+}
+
+bool CC1101::wait_for_state_(CC1101State target, uint32_t timeout_ms) {
+  uint32_t start = millis();
+  while (millis() - start < timeout_ms) {
+    CC1101State current = this->get_state_();
+    if (current == target) {
+      return true;
+    }
+    delayMicroseconds(100);
+  }
+  ESP_LOGW(TAG, "Timeout waiting for state %d, current: %d",
+           static_cast<int>(target), static_cast<int>(this->get_state_()));
+  return false;
+}
+
+CC1101State CC1101::get_state_() {
+  uint8_t marcstate = this->read_status_(CC1101Register::MARCSTATE) & 0x1F;
+  return static_cast<CC1101State>(marcstate);
+}
+
 int8_t CC1101::get_rssi() {
-  uint8_t raw = this->spi_read_status_(REG_RSSI);
-  int16_t rssi_dec = raw >= 128 ? (int16_t)raw - 256 : raw;
-  return (int8_t)(rssi_dec / 2 - 74);
+  uint8_t raw = this->read_status_(CC1101Register::RSSI);
+  // Convert to signed and apply formula
+  int16_t rssi = (raw >= 128) ? (static_cast<int16_t>(raw) - 256) : raw;
+  return static_cast<int8_t>((rssi * RSSI_STEP) - RSSI_OFFSET);
 }
 
 const char *CC1101::get_name() { return TAG; }
 
-uint8_t CC1101::spi_read_reg_(uint8_t address) {
+// SPI Operations using ESPHome-style bus flags
+
+uint8_t CC1101::strobe_(CC1101Command cmd) {
+  uint8_t index = static_cast<uint8_t>(cmd);
   this->delegate_->begin_transaction();
-  this->delegate_->transfer(0x80 | address);
+  uint8_t status = this->delegate_->transfer(index);
+  this->delegate_->end_transaction();
+  return status;
+}
+
+void CC1101::write_reg_(CC1101Register reg, uint8_t value) {
+  uint8_t index = static_cast<uint8_t>(reg);
+  this->delegate_->begin_transaction();
+  this->delegate_->transfer(index | BUS_WRITE);
+  this->delegate_->transfer(value);
+  this->delegate_->end_transaction();
+}
+
+void CC1101::write_burst_(CC1101Register reg, const uint8_t *data, size_t length) {
+  uint8_t index = static_cast<uint8_t>(reg);
+  this->delegate_->begin_transaction();
+  this->delegate_->transfer(index | BUS_WRITE | BUS_BURST);
+  for (size_t i = 0; i < length; i++) {
+    this->delegate_->transfer(data[i]);
+  }
+  this->delegate_->end_transaction();
+}
+
+uint8_t CC1101::read_reg_(CC1101Register reg) {
+  uint8_t index = static_cast<uint8_t>(reg);
+  this->delegate_->begin_transaction();
+  this->delegate_->transfer(index | BUS_READ);
   uint8_t value = this->delegate_->transfer(0x00);
   this->delegate_->end_transaction();
   return value;
 }
 
-void CC1101::spi_read_burst_(uint8_t address, uint8_t *data, size_t length) {
+void CC1101::read_burst_(CC1101Register reg, uint8_t *data, size_t length) {
+  uint8_t index = static_cast<uint8_t>(reg);
   this->delegate_->begin_transaction();
-  this->delegate_->transfer(0xC0 | address);
-  for (size_t i = 0; i < length; i++)
+  this->delegate_->transfer(index | BUS_READ | BUS_BURST);
+  for (size_t i = 0; i < length; i++) {
     data[i] = this->delegate_->transfer(0x00);
+  }
   this->delegate_->end_transaction();
 }
 
-uint8_t CC1101::spi_read_status_(uint8_t address) {
+uint8_t CC1101::read_status_(CC1101Register reg) {
+  // Status registers (0x30-0x3D) need burst bit set to read
+  uint8_t index = static_cast<uint8_t>(reg);
   this->delegate_->begin_transaction();
-  this->delegate_->transfer(0xC0 | address);
+  this->delegate_->transfer(index | BUS_READ | BUS_BURST);
   uint8_t value = this->delegate_->transfer(0x00);
   this->delegate_->end_transaction();
   return value;
 }
 
-void CC1101::spi_write_reg_(uint8_t address, uint8_t data) {
-  this->delegate_->begin_transaction();
-  this->delegate_->transfer(address);
-  this->delegate_->transfer(data);
-  this->delegate_->end_transaction();
-}
-
-void CC1101::spi_write_burst_(uint8_t address, std::initializer_list<uint8_t> data) {
-  this->delegate_->begin_transaction();
-  this->delegate_->transfer(0x40 | address);
-  for (auto byte : data)
-    this->delegate_->transfer(byte);
-  this->delegate_->end_transaction();
-}
-
-void CC1101::strobe_(uint8_t command) {
-  this->delegate_->begin_transaction();
-  this->delegate_->transfer(command);
-  this->delegate_->end_transaction();
-}
+// Configuration setters
 
 void CC1101::set_frequency(float frequency_hz) {
   this->frequency_hz_ = frequency_hz;
@@ -365,5 +381,5 @@ void CC1101::set_channel_spacing(float spacing_hz) {
   this->channel_spacing_hz_ = spacing_hz;
 }
 
-} // namespace wmbus_radio
-} // namespace esphome
+}  // namespace wmbus_radio
+}  // namespace esphome
