@@ -2,11 +2,14 @@
 
 #include "cc1101.h"
 
-const uint8_t TMODE_RF_SETTINGS_LEN = 47;
+namespace esphome {
+namespace wmbus {
 
-//based on https://www.ti.com/lit/an/swra234a/swra234a.pdf
-const uint8_t TMODE_RF_SETTINGS_BYTES[] = {
-  // Type B
+static constexpr uint8_t TMODE_RF_SETTINGS_LEN = 47;
+
+// Based on https://www.ti.com/lit/an/swra234a/swra234a.pdf
+static constexpr uint8_t TMODE_RF_SETTINGS_BYTES[] = {
+  // Type B - wM-Bus T1/C1 mode at 868.95 MHz
   CC1101_IOCFG2,   0x06,
   CC1101_IOCFG1,   0x2E,
   CC1101_IOCFG0,   0x00,
@@ -55,3 +58,6 @@ const uint8_t TMODE_RF_SETTINGS_BYTES[] = {
   CC1101_TEST1,    0x35,
   CC1101_TEST0,    0x09
 };
+
+}  // namespace wmbus
+}  // namespace esphome
