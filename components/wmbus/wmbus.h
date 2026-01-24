@@ -22,17 +22,17 @@ namespace wmbus {
 
   class WMBusListener {
     public:
-      WMBusListener(const uint32_t id, const std::string type, const std::string key);
+      WMBusListener(uint32_t id, const std::string &type, const std::string &key);
       uint32_t id;
       std::string type;
       std::string myKey;
       std::vector<unsigned char> key{};
       std::map<std::pair<std::string, std::string>, sensor::Sensor *> fields{};
-      void add_sensor(std::string field, std::string unit, sensor::Sensor *sensor) {
+      void add_sensor(const std::string &field, const std::string &unit, sensor::Sensor *sensor) {
         this->fields[std::pair<std::string, std::string>(field, unit)] = sensor;
       };
       std::map<std::string, text_sensor::TextSensor *> text_fields{};
-      void add_sensor(std::string field, text_sensor::TextSensor *sensor) {
+      void add_sensor(const std::string &field, text_sensor::TextSensor *sensor) {
         this->text_fields[field] = sensor;
       };
 
@@ -63,21 +63,21 @@ namespace wmbus {
       void loop() override;
       void dump_config() override;
       float get_setup_priority() const override { return setup_priority::LATE; }
-      void set_led_pin(GPIOPin *led) { this->led_pin_ = led; }
-      void set_led_blink_time(uint32_t led_blink_time) { this->led_blink_time_ = led_blink_time; }
-      void register_wmbus_listener(const uint32_t meter_id, const std::string type, const std::string key);
+      void set_led_pin(GPIOPin *led) { led_pin_ = led; }
+      void set_led_blink_time(uint32_t led_blink_time) { led_blink_time_ = led_blink_time; }
+      void register_wmbus_listener(uint32_t meter_id, const std::string &type, const std::string &key);
       void add_cc1101(InternalGPIOPin *mosi, InternalGPIOPin *miso,
                       InternalGPIOPin *clk, InternalGPIOPin *cs,
                       InternalGPIOPin *gdo0, InternalGPIOPin *gdo2,
                       double frequency, bool sync_mode) {
-        this->spi_conf_.mosi = mosi;
-        this->spi_conf_.miso = miso;
-        this->spi_conf_.clk  = clk;
-        this->spi_conf_.cs   = cs;
-        this->spi_conf_.gdo0 = gdo0;
-        this->spi_conf_.gdo2 = gdo2;
-        this->frequency_ = frequency;
-        this->sync_mode_ = sync_mode;
+        spi_conf_.mosi = mosi;
+        spi_conf_.miso = miso;
+        spi_conf_.clk  = clk;
+        spi_conf_.cs   = cs;
+        spi_conf_.gdo0 = gdo0;
+        spi_conf_.gdo2 = gdo2;
+        frequency_ = frequency;
+        sync_mode_ = sync_mode;
       }
       void add_sensor(uint32_t meter_id, std::string field, std::string unit, sensor::Sensor *sensor) {
         if (this->wmbus_listeners_.count(meter_id) != 0) {

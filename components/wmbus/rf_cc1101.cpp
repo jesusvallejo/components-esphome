@@ -1,271 +1,312 @@
 #include "rf_cc1101.h"
 
-#ifdef USE_ESP_IDF
 #include "driver/gpio.h"
 #include "esp_rom_sys.h"
 #include "freertos/task.h"
-#define GPIO_READ(pin) gpio_get_level(static_cast<gpio_num_t>(pin))
-#define GPIO_MODE_INPUT_SETUP(pin) gpio_set_direction(static_cast<gpio_num_t>(pin), GPIO_MODE_INPUT)
-#define DELAY_MS(ms) vTaskDelay(pdMS_TO_TICKS(ms))
-#define GET_MILLIS() (xTaskGetTickCount() * portTICK_PERIOD_MS)
-#else
-#define GPIO_READ(pin) digitalRead(pin)
-#define GPIO_MODE_INPUT_SETUP(pin) pinMode(pin, INPUT)
-#define DELAY_MS(ms) delay(ms)
-#define GET_MILLIS() millis()
-#endif
 
 namespace esphome {
 namespace wmbus {
 
-  static const char *TAG = "rxLoop";
+namespace {
 
-  bool RxLoop::init(uint8_t mosi, uint8_t miso, uint8_t clk, uint8_t cs,
-                    uint8_t gdo0, uint8_t gdo2, float freq, bool syncMode) {
-    bool retVal = false;
-    this->syncMode = syncMode;
-    this->gdo0 = gdo0;
-    this->gdo2 = gdo2;
-    GPIO_MODE_INPUT_SETUP(this->gdo0);
-    GPIO_MODE_INPUT_SETUP(this->gdo2);
+static const char *TAG = "rxLoop";
 
-    // Initialize native CC1101 driver
-    if (!cc1101.init_spi(mosi, miso, clk, cs)) {
-      ESP_LOGE(TAG, "Failed to initialize SPI for CC1101");
-      return false;
-    }
+// GPIO helper functions
+inline bool gpio_read(uint8_t pin) {
+  return gpio_get_level(static_cast<gpio_num_t>(pin)) != 0;
+}
 
-    if (!cc1101.init()) {
-      ESP_LOGE(TAG, "CC1101 initialization failed!");
-      return false;
-    }
+inline void gpio_setup_input(uint8_t pin) {
+  gpio_set_direction(static_cast<gpio_num_t>(pin), GPIO_MODE_INPUT);
+}
 
-    // Write T-Mode RF settings
-    for (uint8_t i = 0; i < TMODE_RF_SETTINGS_LEN; i++) {
-      cc1101.write_reg(TMODE_RF_SETTINGS_BYTES[i << 1],
-                       TMODE_RF_SETTINGS_BYTES[(i << 1) + 1]);
-    }
+inline void delay_ms(uint32_t ms) {
+  vTaskDelay(pdMS_TO_TICKS(ms));
+}
 
-    // Calculate and set frequency
-    uint32_t freq_reg = uint32_t(freq * 65536 / 26);
-    uint8_t freq2 = (freq_reg >> 16) & 0xFF;
-    uint8_t freq1 = (freq_reg >> 8) & 0xFF;
-    uint8_t freq0 = freq_reg & 0xFF;
+inline uint32_t get_millis() {
+  return xTaskGetTickCount() * portTICK_PERIOD_MS;
+}
 
-    ESP_LOGD(TAG, "Set CC1101 frequency to %3.3fMHz [%02X %02X %02X]",
-             freq/1.0, freq2, freq1, freq0);
-    cc1101.write_reg(CC1101_FREQ2, freq2);
-    cc1101.write_reg(CC1101_FREQ1, freq1);
-    cc1101.write_reg(CC1101_FREQ0, freq0);
+}  // namespace
 
-    cc1101.strobe(CC1101_SCAL);
+uint8_t RxLoop::get_marc_state() {
+  return cc1101.read_status(CC1101_MARCSTATE);
+}
 
-    uint8_t cc1101Version = cc1101.get_version();
+bool RxLoop::init(uint8_t mosi, uint8_t miso, uint8_t clk, uint8_t cs,
+                  uint8_t gdo0, uint8_t gdo2, float freq, bool sync_mode) {
+  sync_mode_ = sync_mode;
+  gdo0_pin_ = gdo0;
+  gdo2_pin_ = gdo2;
 
-    if ((cc1101Version != 0) && (cc1101Version != 255)) {
-      retVal = true;
-      ESP_LOGD(TAG, "CC1101 version '%d'", cc1101Version);
-      cc1101.set_rx();
-      ESP_LOGD(TAG, "CC1101 initialized");
-      DELAY_MS(4);
-    }
-    else {
-      ESP_LOGE(TAG, "CC1101 initialization FAILED!");
-    }
+  gpio_setup_input(gdo0_pin_);
+  gpio_setup_input(gdo2_pin_);
 
-    return retVal;
+  // Initialize CC1101 SPI
+  if (!cc1101.init_spi(mosi, miso, clk, cs)) {
+    ESP_LOGE(TAG, "Failed to initialize SPI for CC1101");
+    return false;
   }
 
-  bool RxLoop::task() {
-    do {
-      switch (rxLoop.state) {
-        case INIT_RX:
-          start();
-          return false;
+  if (!cc1101.init()) {
+    ESP_LOGE(TAG, "CC1101 initialization failed!");
+    return false;
+  }
 
-        // RX active, waiting for SYNC
-        case WAIT_FOR_SYNC:
-          if (GPIO_READ(this->gdo2)) { // assert when SYNC detected
-            rxLoop.state = WAIT_FOR_DATA;
-            sync_time_ = GET_MILLIS();
-          }
-          break;
+  // Write T-Mode RF settings
+  for (uint8_t i = 0; i < TMODE_RF_SETTINGS_LEN; ++i) {
+    cc1101.write_reg(TMODE_RF_SETTINGS_BYTES[i << 1],
+                     TMODE_RF_SETTINGS_BYTES[(i << 1) + 1]);
+  }
 
-        // waiting for enough data in Rx FIFO buffer
-        case WAIT_FOR_DATA:
-          if (GPIO_READ(this->gdo0)) { // assert when Rx FIFO buffer threshold reached
-            uint8_t preamble[2];
-            // Read the 3 first bytes,
-            cc1101.read_burst(CC1101_RXFIFO, rxLoop.pByteIndex, 3);
-            rxLoop.bytesRx = 3;
-            const uint8_t *currentByte = rxLoop.pByteIndex;
-            // Mode C
-            if (*currentByte == WMBUS_MODE_C_PREAMBLE) {
-              currentByte++;
-              data_in.mode = 'C';
+  // Calculate and set frequency registers
+  // Formula: FREQ = (f_carrier * 2^16) / f_xosc, where f_xosc = 26 MHz
+  uint32_t freq_reg = static_cast<uint32_t>(freq * 65536.0f / 26.0f);
+  uint8_t freq2 = (freq_reg >> 16) & 0xFF;
+  uint8_t freq1 = (freq_reg >> 8) & 0xFF;
+  uint8_t freq0 = freq_reg & 0xFF;
+
+  ESP_LOGD(TAG, "Set CC1101 frequency to %.3f MHz [%02X %02X %02X]",
+           freq, freq2, freq1, freq0);
+
+  cc1101.write_reg(CC1101_FREQ2, freq2);
+  cc1101.write_reg(CC1101_FREQ1, freq1);
+  cc1101.write_reg(CC1101_FREQ0, freq0);
+
+  // Calibrate frequency synthesizer
+  cc1101.strobe(CC1101_SCAL);
+
+  uint8_t version = cc1101.get_version();
+  if (version == 0x00 || version == 0xFF) {
+    ESP_LOGE(TAG, "CC1101 initialization FAILED!");
+    return false;
+  }
+
+  ESP_LOGD(TAG, "CC1101 version: %d", version);
+  cc1101.set_rx();
+  ESP_LOGD(TAG, "CC1101 initialized");
+  delay_ms(4);
+
+  return true;
+}
+
+bool RxLoop::task() {
+  do {
+    switch (rx_loop_.state) {
+      case RxState::INIT:
+        start();
+        return false;
+
+      case RxState::WAIT_FOR_SYNC:
+        // GDO2 asserts when SYNC word detected
+        if (gpio_read(gdo2_pin_)) {
+          rx_loop_.state = RxState::WAIT_FOR_DATA;
+          sync_time_ = get_millis();
+        }
+        break;
+
+      case RxState::WAIT_FOR_DATA:
+        // GDO0 asserts when RX FIFO threshold reached
+        if (gpio_read(gdo0_pin_)) {
+          uint8_t preamble[2];
+          
+          // Read the first 3 bytes
+          cc1101.read_burst(CC1101_RXFIFO, rx_loop_.buffer_ptr, 3);
+          rx_loop_.bytes_received = 3;
+          const uint8_t *current_byte = rx_loop_.buffer_ptr;
+
+          // Check for Mode C
+          if (*current_byte == WMBUS_MODE_C_PREAMBLE) {
+            ++current_byte;
+            rx_data_.mode = 'C';
+
+            if (*current_byte == WMBUS_BLOCK_A_PREAMBLE) {
               // Block A
-              if (*currentByte == WMBUS_BLOCK_A_PREAMBLE) {
-                currentByte++;
-                rxLoop.lengthField = *currentByte;
-                rxLoop.length = 2 + packetSize(rxLoop.lengthField);
-                data_in.block = 'A';
-              }
+              ++current_byte;
+              rx_loop_.length_field = *current_byte;
+              rx_loop_.total_length = 2 + packetSize(rx_loop_.length_field);
+              rx_data_.block = 'A';
+            } else if (*current_byte == WMBUS_BLOCK_B_PREAMBLE) {
               // Block B
-              else if (*currentByte == WMBUS_BLOCK_B_PREAMBLE) {
-                currentByte++;
-                rxLoop.lengthField = *currentByte;
-                rxLoop.length = 2 + 1 + rxLoop.lengthField;
-                data_in.block = 'B';
-              }
-              // Unknown type, reinit loop
-              else {
-                rxLoop.state = INIT_RX;
-                return false;
-              }
-              // don't include C "preamble"
-              *(rxLoop.pByteIndex) = rxLoop.lengthField;
-              rxLoop.pByteIndex += 1;
-            }
-            // Mode T Block A
-            else if (decode3OutOf6(rxLoop.pByteIndex, preamble)) {
-              rxLoop.lengthField  = preamble[0];
-              data_in.lengthField = rxLoop.lengthField;
-              rxLoop.length  = byteSize(packetSize(rxLoop.lengthField));
-              data_in.mode   = 'T';
-              data_in.block  = 'A';
-              rxLoop.pByteIndex += 3;
-            }
-            // Unknown mode, reinit loop
-            else {
-              rxLoop.state = INIT_RX;
+              ++current_byte;
+              rx_loop_.length_field = *current_byte;
+              rx_loop_.total_length = 2 + 1 + rx_loop_.length_field;
+              rx_data_.block = 'B';
+            } else {
+              // Unknown type, reinit
+              rx_loop_.state = RxState::INIT;
               return false;
             }
+            // Don't include C "preamble"
+            *rx_loop_.buffer_ptr = rx_loop_.length_field;
+            rx_loop_.buffer_ptr += 1;
 
-            rxLoop.bytesLeft = rxLoop.length - 3;
-
-            if (rxLoop.length < MAX_FIXED_LENGTH) {
-              // Set CC1101 into length mode
-              cc1101.write_reg(CC1101_PKTLEN, (uint8_t)rxLoop.length);
-              cc1101.write_reg(CC1101_PKTCTRL0, FIXED_PACKET_LENGTH);
-              rxLoop.cc1101Mode = FIXED;
-            }
-            else {
-              // Set CC1101 into infinite mode
-              cc1101.write_reg(CC1101_PKTLEN, (uint8_t)(rxLoop.length%MAX_FIXED_LENGTH));
-            }
-
-            rxLoop.state = READ_DATA;
-            max_wait_time_ += extra_time_;
-
-            cc1101.write_reg(CC1101_FIFOTHR, RX_FIFO_THRESHOLD);
+          } else if (decode3OutOf6(rx_loop_.buffer_ptr, preamble)) {
+            // Mode T Block A
+            rx_loop_.length_field = preamble[0];
+            rx_data_.lengthField = rx_loop_.length_field;
+            rx_loop_.total_length = byteSize(packetSize(rx_loop_.length_field));
+            rx_data_.mode = 'T';
+            rx_data_.block = 'A';
+            rx_loop_.buffer_ptr += 3;
+          } else {
+            // Unknown mode, reinit
+            rx_loop_.state = RxState::INIT;
+            return false;
           }
-          break;
 
-        // waiting for more data in Rx FIFO buffer
-        case READ_DATA:
-          if (GPIO_READ(this->gdo0)) { // assert when Rx FIFO buffer threshold reached
-            if ((rxLoop.bytesLeft < MAX_FIXED_LENGTH) && (rxLoop.cc1101Mode == INFINITE)) {
-              cc1101.write_reg(CC1101_PKTCTRL0, FIXED_PACKET_LENGTH);
-              rxLoop.cc1101Mode = FIXED;
-            }
-            // Do not empty the Rx FIFO (See the CC1101 SWRZ020E errata note)
-            uint8_t bytesInFIFO = cc1101.read_status(CC1101_RXBYTES) & 0x7F;
-            cc1101.read_burst(CC1101_RXFIFO, rxLoop.pByteIndex, bytesInFIFO - 1);
+          rx_loop_.bytes_remaining = rx_loop_.total_length - 3;
 
-            rxLoop.bytesLeft  -= (bytesInFIFO - 1);
-            rxLoop.pByteIndex += (bytesInFIFO - 1);
-            rxLoop.bytesRx    += (bytesInFIFO - 1);
-            max_wait_time_    += extra_time_;
+          if (rx_loop_.total_length < MAX_FIXED_LENGTH) {
+            // Set CC1101 into fixed length mode
+            cc1101.write_reg(CC1101_PKTLEN, static_cast<uint8_t>(rx_loop_.total_length));
+            cc1101.write_reg(CC1101_PKTCTRL0, FIXED_PACKET_LENGTH);
+            rx_loop_.length_mode = PacketLengthMode::FIXED;
+          } else {
+            // Set CC1101 into infinite mode
+            cc1101.write_reg(CC1101_PKTLEN, static_cast<uint8_t>(rx_loop_.total_length % MAX_FIXED_LENGTH));
           }
-          break;
+
+          rx_loop_.state = RxState::READ_DATA;
+          max_wait_time_ += EXTRA_TIME_MS;
+          cc1101.write_reg(CC1101_FIFOTHR, RX_FIFO_THRESHOLD);
+        }
+        break;
+
+      case RxState::READ_DATA:
+        // GDO0 asserts when RX FIFO threshold reached
+        if (gpio_read(gdo0_pin_)) {
+          if (rx_loop_.bytes_remaining < MAX_FIXED_LENGTH && 
+              rx_loop_.length_mode == PacketLengthMode::INFINITE) {
+            cc1101.write_reg(CC1101_PKTCTRL0, FIXED_PACKET_LENGTH);
+            rx_loop_.length_mode = PacketLengthMode::FIXED;
+          }
+
+          // Do not empty the RX FIFO completely (see CC1101 errata note)
+          uint8_t bytes_in_fifo = cc1101.read_status(CC1101_RXBYTES) & 0x7F;
+          uint8_t bytes_to_read = bytes_in_fifo - 1;
+          
+          cc1101.read_burst(CC1101_RXFIFO, rx_loop_.buffer_ptr, bytes_to_read);
+
+          rx_loop_.bytes_remaining -= bytes_to_read;
+          rx_loop_.buffer_ptr += bytes_to_read;
+          rx_loop_.bytes_received += bytes_to_read;
+          max_wait_time_ += EXTRA_TIME_MS;
+        }
+        break;
+    }
+
+    // Check for overflow or end of packet
+    uint8_t rx_bytes = cc1101.read_status(CC1101_RXBYTES);
+    bool overflow = (rx_bytes & 0x80) != 0;
+    bool sync_deasserted = !gpio_read(gdo2_pin_);
+
+    if (!overflow && sync_deasserted && rx_loop_.state > RxState::WAIT_FOR_DATA) {
+      // Read remaining bytes
+      cc1101.read_burst(CC1101_RXFIFO, rx_loop_.buffer_ptr, 
+                        static_cast<uint8_t>(rx_loop_.bytes_remaining));
+      rx_loop_.bytes_received += rx_loop_.bytes_remaining;
+      rx_data_.length = rx_loop_.bytes_received;
+
+      result_frame_.rssi = cc1101.get_rssi();
+      result_frame_.lqi = cc1101.get_lqi();
+
+      ESP_LOGV(TAG, "Received %d bytes, RSSI: %d dBm, LQI: %d",
+               rx_loop_.bytes_received, result_frame_.rssi, result_frame_.lqi);
+
+      if (rx_loop_.total_length != rx_data_.length) {
+        ESP_LOGE(TAG, "Length mismatch: expected %d, received %d",
+                 rx_loop_.total_length, rx_data_.length);
       }
 
-      uint8_t overfl = cc1101.read_status(CC1101_RXBYTES) & 0x80;
-      // end of packet in length mode
-      if ((!overfl) && (!GPIO_READ(gdo2))  && (rxLoop.state > WAIT_FOR_DATA)) {
-        cc1101.read_burst(CC1101_RXFIFO, rxLoop.pByteIndex, (uint8_t)rxLoop.bytesLeft);
-        rxLoop.bytesRx += rxLoop.bytesLeft;
-        data_in.length  = rxLoop.bytesRx;
-        this->returnFrame.rssi  = cc1101.get_rssi();
-        this->returnFrame.lqi   = cc1101.get_lqi();
-        ESP_LOGV(TAG, "Have %d bytes from CC1101 Rx, RSSI: %d dBm LQI: %d", rxLoop.bytesRx, this->returnFrame.rssi, this->returnFrame.lqi);
-        if (rxLoop.length != data_in.length) {
-          ESP_LOGE(TAG, "Length problem: req(%d) != rx(%d)", rxLoop.length, data_in.length);
-        }
-        if (this->syncMode) {
-          ESP_LOGV(TAG, "Synchronus mode enabled.");
-        }
-        if (mBusDecode(data_in, this->returnFrame)) {
-          rxLoop.complete = true;
-          this->returnFrame.mode  = data_in.mode;
-          this->returnFrame.block = data_in.block;
-        }
-        rxLoop.state = INIT_RX;
-        return rxLoop.complete;
+      if (sync_mode_) {
+        ESP_LOGV(TAG, "Synchronous mode enabled");
       }
-      start(false);
-    } while ((this->syncMode) && (rxLoop.state > WAIT_FOR_SYNC));
-    return rxLoop.complete;
-  }
 
-  WMbusFrame RxLoop::get_frame() {
-    return this->returnFrame;
-  }
+      if (mBusDecode(rx_data_, result_frame_)) {
+        rx_loop_.complete = true;
+        result_frame_.mode = rx_data_.mode;
+        result_frame_.block = rx_data_.block;
+      }
 
-  bool RxLoop::start(bool force) {
-    // waiting to long for next part of data?
-    bool reinit_needed = ((GET_MILLIS() - sync_time_) > max_wait_time_) ? true: false;
-    if (!force) {
-      if (!reinit_needed) {
-        // already in RX?
-        if (cc1101.read_status(CC1101_MARCSTATE) == MARCSTATE_RX) {
-          return false;
-        }
+      rx_loop_.state = RxState::INIT;
+      return rx_loop_.complete;
+    }
+
+    start(false);
+
+  } while (sync_mode_ && rx_loop_.state > RxState::WAIT_FOR_SYNC);
+
+  return rx_loop_.complete;
+}
+
+WMbusFrame RxLoop::get_frame() {
+  return result_frame_;
+}
+
+bool RxLoop::start(bool force) {
+  // Check if reinit is needed due to timeout
+  bool timeout = (get_millis() - sync_time_) > max_wait_time_;
+
+  if (!force) {
+    if (!timeout) {
+      // Check if already in RX mode
+      if (get_marc_state() == static_cast<uint8_t>(MarcState::RX)) {
+        return false;
       }
     }
-    // init RX here, each time we're idle
-    rxLoop.state = INIT_RX;
-    sync_time_ = GET_MILLIS();
-    max_wait_time_ = extra_time_;
-
-    cc1101.strobe(CC1101_SIDLE);
-    while((cc1101.read_status(CC1101_MARCSTATE) != MARCSTATE_IDLE));
-    cc1101.strobe(CC1101_SFTX);  //flush Tx FIFO
-    cc1101.strobe(CC1101_SFRX);  //flush Rx FIFO
-
-    // Initialize RX info variable
-    rxLoop.lengthField = 0;              // Length Field in the wM-Bus packet
-    rxLoop.length      = 0;              // Total length of bytes to receive packet
-    rxLoop.bytesLeft   = 0;              // Bytes left to to be read from the Rx FIFO
-    rxLoop.bytesRx     = 0;              // Bytes read from Rx FIFO
-    rxLoop.pByteIndex  = data_in.data;   // Pointer to current position in the byte array
-    rxLoop.complete    = false;          // Packet received
-    rxLoop.cc1101Mode  = INFINITE;       // Infinite or fixed CC1101 packet mode
-
-    this->returnFrame.frame.clear();
-    this->returnFrame.rssi  = 0;
-    this->returnFrame.lqi   = 0;
-    this->returnFrame.mode  = 'X';
-    this->returnFrame.block = 'X';
-
-    std::fill( std::begin( data_in.data ), std::end( data_in.data ), 0 );
-    data_in.length      = 0;
-    data_in.lengthField = 0;
-    data_in.mode        = 'X';
-    data_in.block       = 'X';
-
-    // Set Rx FIFO threshold to 4 bytes
-    cc1101.write_reg(CC1101_FIFOTHR, RX_FIFO_START_THRESHOLD);
-    // Set infinite length 
-    cc1101.write_reg(CC1101_PKTCTRL0, INFINITE_PACKET_LENGTH);
-
-    cc1101.strobe(CC1101_SRX);
-    while((cc1101.read_status(CC1101_MARCSTATE) != MARCSTATE_RX));
-
-    rxLoop.state = WAIT_FOR_SYNC;
-
-    return true; // this will indicate we just have re-started Rx
   }
 
+  // Initialize RX
+  rx_loop_.state = RxState::INIT;
+  sync_time_ = get_millis();
+  max_wait_time_ = EXTRA_TIME_MS;
+
+  // Go to IDLE and flush FIFOs
+  cc1101.strobe(CC1101_SIDLE);
+  while (get_marc_state() != static_cast<uint8_t>(MarcState::IDLE)) {
+    // Wait for IDLE state
+  }
+  cc1101.strobe(CC1101_SFTX);  // Flush TX FIFO
+  cc1101.strobe(CC1101_SFRX);  // Flush RX FIFO
+
+  // Reset RX loop state
+  rx_loop_.length_field = 0;
+  rx_loop_.total_length = 0;
+  rx_loop_.bytes_remaining = 0;
+  rx_loop_.bytes_received = 0;
+  rx_loop_.buffer_ptr = rx_data_.data;
+  rx_loop_.complete = false;
+  rx_loop_.length_mode = PacketLengthMode::INFINITE;
+
+  // Reset result frame
+  result_frame_.frame.clear();
+  result_frame_.rssi = 0;
+  result_frame_.lqi = 0;
+  result_frame_.mode = 'X';
+  result_frame_.block = 'X';
+
+  // Reset RX data buffer
+  std::fill(std::begin(rx_data_.data), std::end(rx_data_.data), 0);
+  rx_data_.length = 0;
+  rx_data_.lengthField = 0;
+  rx_data_.mode = 'X';
+  rx_data_.block = 'X';
+
+  // Configure for infinite packet mode with initial FIFO threshold
+  cc1101.write_reg(CC1101_FIFOTHR, RX_FIFO_START_THRESHOLD);
+  cc1101.write_reg(CC1101_PKTCTRL0, INFINITE_PACKET_LENGTH);
+
+  // Enter RX mode
+  cc1101.strobe(CC1101_SRX);
+  while (get_marc_state() != static_cast<uint8_t>(MarcState::RX)) {
+    // Wait for RX state
+  }
+
+  rx_loop_.state = RxState::WAIT_FOR_SYNC;
+  return true;
 }
-}
+
+}  // namespace wmbus
+}  // namespace esphome
