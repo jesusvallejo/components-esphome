@@ -32,11 +32,11 @@ const uint8_t TMODE_RF_SETTINGS_BYTES[] = {
   CC1101_MCSM2,    0x07,
   CC1101_MCSM1,    0x00,
   CC1101_MCSM0,    0x18,
-  CC1101_FOCCFG,   0x2E,
-  CC1101_BSCFG,    0xBF,
-  CC1101_AGCCTRL2, 0x43,
-  CC1101_AGCCTRL1, 0x09,
-  CC1101_AGCCTRL0, 0xB5,
+  CC1101_FOCCFG,   0x1D,  // Frequency offset compensation - improved tracking
+  CC1101_BSCFG,    0x1C,  // Bit synchronization - optimized for sensitivity
+  CC1101_AGCCTRL2, 0xC7,  // AGC: Max LNA + LNA2 gain, reduced MAGN_TARGET for better sensitivity
+  CC1101_AGCCTRL1, 0x00,  // AGC: LNA priority, no carrier sense threshold
+  CC1101_AGCCTRL0, 0xB0,  // AGC: Medium hysteresis, 16 samples for AGC
   CC1101_WOREVT1,  0x87,
   CC1101_WOREVT0,  0x6B,
   CC1101_WORCTRL,  0xFB,
