@@ -1,4 +1,4 @@
-# Golmar UNO ESPHome Component
+# ESPHome External Components
 
 > **Language / Idioma:** [English](#english) | [Español](#español)
 
@@ -9,183 +9,88 @@
 
 ### Description
 
-ESPHome external component for integrating Golmar UNO intercom systems (T720/T540) with Home Assistant. This component enables:
+This repository contains external components for [ESPHome](https://esphome.io/) that enable integration of various devices with Home Assistant. These components provide advanced functionality for smart home automation.
 
-- **Incoming call detection** - Binary sensor that activates when someone rings the intercom
-- **Door unlock control** - Multiple entity types available:
-  - **Button** - Simple momentary unlock action
-  - **Switch** - Toggle with auto-off after configurable duration
-  - **Lock** - Full lock entity with unlock, lock, and open actions
+### Available Components
+
+| Component | Description | Documentation |
+|-----------|-------------|---------------|
+| **[golmar_uno](components/golmar_uno/)** | Integration for Golmar UNO intercom systems (T720/T540) - call detection and door unlock | [README](components/golmar_uno/README.md) |
+| **[wmbus](components/wmbus/)** | Wireless M-Bus (wM-Bus) receiver for smart meters using CC1101 radio module | [README](components/wmbus/README.md) |
 
 ### Installation
 
 Add the external component to your ESPHome configuration:
 
 ```yaml
+# Golmar UNO
 external_components:
-  - source: github://jesusvallejo/components-esphome/components@main
+  - source: github://jesusvallejo/components-esphome@main
     components: [ golmar_uno ]
+    refresh: 0s
+
+# wM-Bus
+external_components:
+  - source: github://jesusvallejo/components-esphome@main
+    components: [ wmbus ]
     refresh: 0s
 ```
 
-### Hardware Requirements
+### Requirements
 
-- ESP32 board (tested with ESP32-C3)
-- UART connection to Golmar UNO intercom system
-- Protocol: 2600 baud, 8 data bits, EVEN parity, 1 stop bit
+- [ESPHome](https://esphome.io/) 2023.12.0 or later
+- [Home Assistant](https://www.home-assistant.io/) (recommended for full functionality)
+- ESP32 board (tested platform)
 
-### Configuration
+### Component Details
 
-#### UART Setup
+#### Golmar UNO
 
-```yaml
-uart:
-  - id: intercom_uart
-    tx_pin: GPIO10
-    rx_pin: GPIO4
-    baud_rate: 2600
-    data_bits: 8
-    parity: EVEN
-    stop_bits: 1
-```
+ESPHome component for Golmar UNO intercom systems. Features include:
+- 📞 Incoming call detection
+- 🔓 Door unlock control (Button, Switch, Lock entities)
+- 🔌 UART communication protocol
 
-#### Component Configuration
+**[Full Documentation →](components/golmar_uno/README.md)**
 
-```yaml
-golmar_uno:
-  intercom_id: 0x11          # Your intercom device ID
-  concierge_id: 0x00         # Concierge/doorman ID
-  call_alert_duration: 2s    # Duration for call alert (default: 2s)
-  unlock_timeout: 1s         # Timeout waiting for confirmation (default: 1s)
-  command_delay: 500ms       # Delay between commands (min: 500ms)
-```
+#### wM-Bus (Wireless M-Bus)
 
-| Option | Required | Default | Description |
-|--------|----------|---------|-------------|
-| `intercom_id` | Yes | - | Your intercom unit ID (hex) |
-| `concierge_id` | Yes | - | Concierge/doorman ID (hex) |
-| `call_alert_duration` | No | 2s | How long the call sensor stays on |
-| `unlock_timeout` | No | 1s | Timeout for confirmation responses |
-| `command_delay` | No | 500ms | Delay between protocol commands (min 500ms) |
+ESPHome component for receiving and decoding wM-Bus telegrams from smart meters. Features include:
+- 📡 CC1101 radio module support
+- 🔐 AES decryption support
+- 📊 Support for 80+ meter types
+- ⚡ Real-time meter reading
 
-### Entities
+**[Full Documentation →](components/wmbus/README.md)**
 
-#### Binary Sensor (Incoming Call)
+### Authors & Credits
 
-```yaml
-binary_sensor:
-  - platform: golmar_uno
-    name: "Intercom Call"
-```
+- **Golmar UNO Component**: [@jesusvallejo](https://github.com/jesusvallejo)
+- **wM-Bus Component**: Fork from [@SzczepanLeon](https://github.com/SzczepanLeon), CC1101 integration by [@jesusvallejo](https://github.com/jesusvallejo)
 
-Detects incoming calls. The sensor turns on when a call is received and automatically turns off after `call_alert_duration`.
+### License
 
-#### Button (Unlock Door)
+MIT License
 
-```yaml
-button:
-  - platform: golmar_uno
-    name: "Unlock Door"
-```
+Copyright (c) 2024-2026 jesusvallejo
 
-Simple momentary action to unlock the door.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-#### Switch (Unlock Door)
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-```yaml
-switch:
-  - platform: golmar_uno
-    name: "Door Unlock"
-```
-
-Toggle switch that auto-turns off after 2 seconds. Useful for automations.
-
-#### Lock (Door Lock)
-
-```yaml
-lock:
-  - platform: golmar_uno
-    name: "Front Door"
-```
-
-Full lock entity with:
-- **Unlock** - Initiates unlock sequence, auto-locks after 10 seconds
-- **Lock** - Immediately sets state to locked (no physical action)
-- **Open** - Momentary unlock without auto-lock timer
-
-### Complete Example
-
-```yaml
-esphome:
-  name: intercom
-  friendly_name: Golmar Intercom
-
-esp32:
-  board: esp32-c3-devkitm-1
-  framework:
-    type: esp-idf
-
-logger:
-
-api:
-  encryption:
-    key: "your-api-key"
-
-ota:
-  platform: esphome
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-
-uart:
-  - id: intercom_uart
-    tx_pin: GPIO10
-    rx_pin: GPIO4
-    baud_rate: 2600
-    data_bits: 8
-    parity: EVEN
-    stop_bits: 1
-
-golmar_uno:
-  intercom_id: 0x11
-  concierge_id: 0x00
-  call_alert_duration: 2s
-  unlock_timeout: 1s
-  command_delay: 500ms
-
-binary_sensor:
-  - platform: golmar_uno
-    name: "Incoming Call"
-
-lock:
-  - platform: golmar_uno
-    name: "Front Door"
-```
-
-### Protocol Details
-
-The Golmar UNO uses a 4-byte protocol over UART:
-
-| Byte | Description |
-|------|-------------|
-| 1 | Address 1 |
-| 2 | Address 2 |
-| 3 | Device ID |
-| 4 | Command |
-
-**Commands:**
-- `0x11` - Clear bus
-- `0x01` - Confirmation
-- `0x22` - Call concierge
-- `0x37` - Incoming call
-- `0x90` - Unlock door
-
-### Troubleshooting
-
-- **No call detection**: Verify `intercom_id` matches your device
-- **Unlock not working**: Check `concierge_id` and UART wiring
-- **Communication errors**: Ensure 500ms minimum between commands
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ---
 
@@ -194,186 +99,85 @@ The Golmar UNO uses a 4-byte protocol over UART:
 
 ### Descripción
 
-Componente externo de ESPHome para integrar sistemas de portero automático Golmar UNO (T720/T540) con Home Assistant. Este componente permite:
+Este repositorio contiene componentes externos para [ESPHome](https://esphome.io/) que permiten la integración de varios dispositivos con Home Assistant. Estos componentes proporcionan funcionalidad avanzada para automatización del hogar inteligente.
 
-- **Detección de llamadas entrantes** - Sensor binario que se activa cuando alguien llama al portero
-- **Control de apertura de puerta** - Varios tipos de entidades disponibles:
-  - **Botón** - Acción momentánea simple de apertura
-  - **Interruptor** - Con apagado automático tras duración configurable
-  - **Cerradura** - Entidad completa con acciones de abrir, cerrar y apertura momentánea
+### Componentes Disponibles
+
+| Componente | Descripción | Documentación |
+|------------|-------------|---------------|
+| **[golmar_uno](components/golmar_uno/)** | Integración para sistemas de portero Golmar UNO (T720/T540) - detección de llamadas y apertura de puerta | [README](components/golmar_uno/README_ES.md) |
+| **[wmbus](components/wmbus/)** | Receptor Wireless M-Bus (wM-Bus) para contadores inteligentes usando módulo de radio CC1101 | [README](components/wmbus/README_ES.md) |
 
 ### Instalación
 
 Añade el componente externo a tu configuración de ESPHome:
 
 ```yaml
+# Golmar UNO
 external_components:
-  - source: github://jesusvallejo/components-esphome/components@main
+  - source: github://jesusvallejo/components-esphome@main
     components: [ golmar_uno ]
+    refresh: 0s
+
+# wM-Bus
+external_components:
+  - source: github://jesusvallejo/components-esphome@main
+    components: [ wmbus ]
     refresh: 0s
 ```
 
-### Requisitos de Hardware
+### Requisitos
 
-- Placa ESP32 (probado con ESP32-C3)
-- Conexión UART al sistema de portero Golmar UNO
-- Protocolo: 2600 baudios, 8 bits de datos, paridad PAR, 1 bit de parada
+- [ESPHome](https://esphome.io/) 2023.12.0 o posterior
+- [Home Assistant](https://www.home-assistant.io/) (recomendado para funcionalidad completa)
+- Placa ESP32 (plataforma probada)
 
-### Configuración
+### Detalles de los Componentes
 
-#### Configuración UART
+#### Golmar UNO
 
-```yaml
-uart:
-  - id: intercom_uart
-    tx_pin: GPIO10
-    rx_pin: GPIO4
-    baud_rate: 2600
-    data_bits: 8
-    parity: EVEN
-    stop_bits: 1
-```
+Componente ESPHome para sistemas de portero Golmar UNO. Características:
+- 📞 Detección de llamadas entrantes
+- 🔓 Control de apertura de puerta (entidades Botón, Interruptor, Cerradura)
+- 🔌 Protocolo de comunicación UART
 
-#### Configuración del Componente
+**[Documentación Completa →](components/golmar_uno/README_ES.md)**
 
-```yaml
-golmar_uno:
-  intercom_id: 0x11          # ID de tu dispositivo de portero
-  concierge_id: 0x00         # ID del conserje/portero
-  call_alert_duration: 2s    # Duración de la alerta de llamada (por defecto: 2s)
-  unlock_timeout: 1s         # Tiempo de espera para confirmación (por defecto: 1s)
-  command_delay: 500ms       # Retardo entre comandos (mín: 500ms)
-```
+#### wM-Bus (Wireless M-Bus)
 
-| Opción | Requerido | Por defecto | Descripción |
-|--------|-----------|-------------|-------------|
-| `intercom_id` | Sí | - | ID de tu unidad de portero (hex) |
-| `concierge_id` | Sí | - | ID del conserje/portero (hex) |
-| `call_alert_duration` | No | 2s | Duración del sensor de llamada activo |
-| `unlock_timeout` | No | 1s | Tiempo de espera para respuestas de confirmación |
-| `command_delay` | No | 500ms | Retardo entre comandos del protocolo (mín 500ms) |
+Componente ESPHome para recibir y decodificar telegramas wM-Bus de contadores inteligentes. Características:
+- 📡 Soporte para módulo de radio CC1101
+- 🔐 Soporte de descifrado AES
+- 📊 Soporte para más de 80 tipos de contadores
+- ⚡ Lectura de contadores en tiempo real
 
-### Entidades
+**[Documentación Completa →](components/wmbus/README_ES.md)**
 
-#### Sensor Binario (Llamada Entrante)
+### Autores y Créditos
 
-```yaml
-binary_sensor:
-  - platform: golmar_uno
-    name: "Llamada Portero"
-```
+- **Componente Golmar UNO**: [@jesusvallejo](https://github.com/jesusvallejo)
+- **Componente wM-Bus**: Fork de [@SzczepanLeon](https://github.com/SzczepanLeon), integración CC1101 por [@jesusvallejo](https://github.com/jesusvallejo)
 
-Detecta llamadas entrantes. El sensor se activa cuando se recibe una llamada y se desactiva automáticamente después de `call_alert_duration`.
+### Licencia
 
-#### Botón (Abrir Puerta)
+Licencia MIT
 
-```yaml
-button:
-  - platform: golmar_uno
-    name: "Abrir Puerta"
-```
+Copyright (c) 2024-2026 jesusvallejo
 
-Acción momentánea simple para abrir la puerta.
+Por la presente se concede permiso, libre de cargos, a cualquier persona que obtenga
+una copia de este software y de los archivos de documentación asociados (el "Software"),
+a utilizar el Software sin restricción, incluyendo sin limitación los derechos a usar,
+copiar, modificar, fusionar, publicar, distribuir, sublicenciar, y/o vender copias del
+Software, y a permitir a las personas a las que se les proporcione el Software a hacer
+lo mismo, sujeto a las siguientes condiciones:
 
-#### Interruptor (Abrir Puerta)
+El aviso de copyright anterior y este aviso de permiso se incluirán en todas las copias
+o partes sustanciales del Software.
 
-```yaml
-switch:
-  - platform: golmar_uno
-    name: "Apertura Puerta"
-```
-
-Interruptor que se apaga automáticamente después de 2 segundos. Útil para automatizaciones.
-
-#### Cerradura (Cerradura de Puerta)
-
-```yaml
-lock:
-  - platform: golmar_uno
-    name: "Puerta Principal"
-```
-
-Entidad de cerradura completa con:
-- **Desbloquear** - Inicia secuencia de apertura, se bloquea automáticamente después de 10 segundos
-- **Bloquear** - Establece inmediatamente el estado a bloqueado (sin acción física)
-- **Abrir** - Apertura momentánea sin temporizador de auto-bloqueo
-
-### Ejemplo Completo
-
-```yaml
-esphome:
-  name: portero
-  friendly_name: Portero Golmar
-
-esp32:
-  board: esp32-c3-devkitm-1
-  framework:
-    type: esp-idf
-
-logger:
-
-api:
-  encryption:
-    key: "tu-clave-api"
-
-ota:
-  platform: esphome
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-
-uart:
-  - id: intercom_uart
-    tx_pin: GPIO10
-    rx_pin: GPIO4
-    baud_rate: 2600
-    data_bits: 8
-    parity: EVEN
-    stop_bits: 1
-
-golmar_uno:
-  intercom_id: 0x11
-  concierge_id: 0x00
-  call_alert_duration: 2s
-  unlock_timeout: 1s
-  command_delay: 500ms
-
-binary_sensor:
-  - platform: golmar_uno
-    name: "Llamada Entrante"
-
-lock:
-  - platform: golmar_uno
-    name: "Puerta Principal"
-```
-
-### Detalles del Protocolo
-
-El Golmar UNO utiliza un protocolo de 4 bytes sobre UART:
-
-| Byte | Descripción |
-|------|-------------|
-| 1 | Dirección 1 |
-| 2 | Dirección 2 |
-| 3 | ID del dispositivo |
-| 4 | Comando |
-
-**Comandos:**
-- `0x11` - Limpiar bus
-- `0x01` - Confirmación
-- `0x22` - Llamar a conserjería
-- `0x37` - Llamada entrante
-- `0x90` - Abrir puerta
-
-### Solución de Problemas
-
-- **No detecta llamadas**: Verifica que `intercom_id` coincida con tu dispositivo
-- **La apertura no funciona**: Comprueba `concierge_id` y el cableado UART
-- **Errores de comunicación**: Asegura un mínimo de 500ms entre comandos
-
----
-
-## License / Licencia
-
-MIT License
+EL SOFTWARE SE PROPORCIONA "COMO ESTÁ", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O
+IMPLÍCITA, INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIALIZACIÓN, IDONEIDAD
+PARA UN PROPÓSITO PARTICULAR E INCUMPLIMIENTO. EN NINGÚN CASO LOS AUTORES O
+PROPIETARIOS DE LOS DERECHOS DE AUTOR SERÁN RESPONSABLES DE NINGUNA RECLAMACIÓN,
+DAÑOS U OTRAS RESPONSABILIDADES, YA SEA EN UNA ACCIÓN DE CONTRATO, AGRAVIO O
+CUALQUIER OTRO MOTIVO, DERIVADAS DE, FUERA DE O EN CONEXIÓN CON EL SOFTWARE O SU
+USO U OTRO TIPO DE ACCIONES EN EL SOFTWARE.
